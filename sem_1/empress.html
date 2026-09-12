@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Empress</title>
+    <link rel='stylesheet' type="text/css" href='support_files/css/empress.css'>
+    <link rel='stylesheet' type="text/css" href='support_files/vendor/spectrum.min.css'>
+    <link rel='stylesheet' type="text/css" href='support_files/vendor/toastr.min.css'>
+    <script src='support_files/vendor/require-2.1.22.min.js'></script>
+    
+    
+  </head>
+  <body>
+
+  <div>
+    <!-- The tree -->
+    <div class="">
+      <div id="tree-container" class="container ">
+        <!-- loading screen -->
+        <div id="loading-screen">
+          <div id="loading-animation"></div>
+          <div id="loading-text">Loading...</div>
+        </div>
+
+        <canvas class="tree-surface" id="tree-surface">
+            Your browser does not support HTML5
+        </canvas>
+        <div id="tip-label-container"></div>
+        <div id="node-label-container"></div>
+        <div class="square"></div>
+
+        <!-- Side panel -->
+        <div id="side-panel" class="unselectable-text hidden">
+          <!-- The Header bar -->
+<div id="autocomplete-container">
+  <p class="side-header">
+    <!-- Attempt to stop the browser's autocomplete suggestions, since Empress
+         shows its own autocomplete menu (see #445 on GitHub)
+    -->
+    <input type="text" id="quick-search" placeholder="Search by node name..."
+           style="flex-grow: 1;" autocomplete="off" class="empress-input">
+    <button id="side-header-search-btn" style="flex-grow: 1;">Search</button>
+    <button id="hide-ctrl" title="Hide control panel"
+            style="font-size: 10pt; padding: 0 0 3px 3px;">&#9701;</button>
+  </p>
+</div>
+
+<!-- Sample Coloring Options -->
+<button id="smOpenButton" class="side-header collapsible needs-community-data">
+    Sample Metadata Coloring</button>
+<div class="side-content control hidden" id="sample-metadata-coloring-div">
+  <p class="side-panel-notes">
+    Color tips in the tree that are unique to certain groups of samples.
+    Internal nodes where all descendants are unique to a group are themselves
+    considered unique to that group.
+  </p>
+  <p>
+    <label for="sample-chk">Color by...</label>
+    <input id="sample-chk" type="checkbox" class="empress-input">
+    <label class="select-container">
+      <select id="sample-options"  disabled="true"></select>
+    </label>
+  </p>
+  <p class="hidden">
+    <div id="sample-add" class="hidden">
+      <p>
+        <label for="sample-color">Color Map</label>
+        <label class="select-container">
+          <select id="sample-color"></select>
+        </label>
+      </p>
+      <p>
+        <label for="sample-reverse-color-chk">Reverse Color Map</label>
+        <input id="sample-reverse-color-chk" type="checkbox" value="false"
+               class="empress-input">
+      </p>
+      <p>
+        <label for="sample-collapse-chk">Collapse Clades</label>
+        <input id="sample-collapse-chk" type="checkbox" value="false"
+               class="empress-input">
+      </p>
+      <p class="side-panel-notes indented">
+        If checked, collapse all clades whose members share the same sample
+        metadata value.
+      </p>
+      <p>
+        <label for="sample-line-width">Extra Line Width</label>
+        <input id="sample-line-width" type="number" value="0" min="0"
+               step="any" class="empress-input">
+      </p>
+      <p>
+        <button id="sample-update" class="hidden">Update</button>
+      </p>
+    </div>
+  </p>
+</div>
+
+<!-- Feature Metadata Coloring Options -->
+<button id="fmOpenButton" class="side-header collapsible needs-feature-metadata">
+    Feature Metadata Coloring</button>
+<div class="side-content control hidden" id="feature-metadata-coloring-div">
+  <p class="side-panel-notes">
+    Color nodes in the tree based on feature metadata: for example,
+    taxonomic annotations.
+  </p>
+  <p>
+    <label for="feature-chk">Color by...</label>
+    <input id="feature-chk" type="checkbox" class="empress-input">
+    <label class="select-container">
+      <select id="feature-options"  disabled="true"></select>
+    </label>
+  </p>
+  <p class="hidden">
+    <div id="feature-add" class="hidden">
+      <p>
+        <label for="feature-color">Color Map</label>
+        <label class="select-container">
+          <select id="feature-color"></select>
+        </label>
+      </p>
+    <p>
+      <label for="feature-reverse-color-chk">Reverse Color Map</label>
+      <input id="feature-reverse-color-chk" type="checkbox" value="false"
+             class="empress-input">
+    </p>
+      <p>
+        <label for="feature-collapse-chk">Collapse Clades</label>
+        <input id="feature-collapse-chk" type="checkbox" value="false"
+               class="empress-input">
+      </p>
+      <p class="side-panel-notes indented">
+        If checked, collapse all clades whose members share the same feature
+        metadata value.
+      </p>
+      <p>
+        <label for="feature-line-width">Extra Line Width</label>
+        <input id="feature-line-width" type="number" value="0" min="0"
+               step="any" class="empress-input">
+      </p>
+      <p>
+        <label for="fm-method-chk">Only use tip-level metadata?</label>
+        <input id="fm-method-chk" type="checkbox" checked="true"
+               class="empress-input">
+        <!-- We'll fill this in when the feature metadata tab is opened,
+             and we'll update it when fm-method-chk is updated.
+        -->
+        <p class="side-panel-notes indented" id="fm-method-desc">
+        </p>
+      </p>
+      <p>
+        <button id="feature-update" class="hidden">Update</button>
+      </p>
+    </div>
+  </p>
+</div>
+
+<!-- Layout methods and options; shamelessly copied from above. -->
+<button class="side-header collapsible">Layout</button>
+<div class="side-content control hidden">
+  <p class="side-panel-notes">
+    Change how the tree is drawn.
+  </p>
+  <!-- Layout methods (e.g. Rectangular, Circular, Unrooted) will be added to
+       this <div> when SidePanel.addLayoutTab() is called.
+  -->
+  <div id="layout-method-container">
+  </div>
+  <hr />
+  <p class="side-panel-inner-header">
+    Branch lengths
+  </p>
+  <div id="branch-length-warning">
+    <p class="side-panel-notes">
+      Warning: the "Ignore branch lengths" and "Make ultrametric" options display
+      modified branch lengths that can be useful for aesthetics. The resulting
+      trees should not be interpreted with respect to their branch lengths.
+    </p>
+  </div>
+  <div id="branch-length-method-container">
+    <p>
+      <label for="normal-lengths-chk">Normal</label>
+      <input type="radio" id="normal-lengths-chk" name="branches-radio" value="normal"
+             class="empress-input" checked="true">
+    </p>
+    <p class="side-panel-notes indented">
+      The branch lengths shown correspond to the branch lengths in the original tree.
+    </p>
+    <p>
+      <label for="ignore-lengths-chk">Ignore branch lengths</label>
+      <input type="radio" id="ignore-lengths-chk" name="branches-radio" value="ignore"
+             class="empress-input">
+    </p>
+    <p class="side-panel-notes indented">
+      If checked, all branches are drawn with the same length. Note that the
+      root node is never drawn with any length, regardless of if this
+      is checked or not.
+    </p>
+    <p>
+      <label for="make-ultrametric-chk">Make ultrametric</label>
+      <input type="radio" id="make-ultrametric-chk" name="branches-radio" value="ultrametric"
+             class="empress-input">
+    </p>
+    <p class="side-panel-notes indented">
+      If checked, branch lengths will be adjusted so that the root-to-tip distance
+      is the same for all tips.
+    </p>
+  </div>
+  <div id="leaf-sorting-container">
+    <hr />
+    <p class="side-panel-inner-header">
+      Clade sorting
+    </p>
+    <p>
+      <label for="leaf-sorting-select">Sort clades based on tip count?</label>
+      <label class="select-container">
+        <select id="leaf-sorting-select">
+          <option value="none">No sorting</option>
+          <option value="ascending">Sort (ascending)</option>
+          <option value="descending" selected>Sort (descending)</option>
+        </select>
+      </label>
+    </p>
+    <p class="side-panel-notes indented" id="leaf-sorting-desc">
+    </p>
+  </div>
+</div>
+
+<!-- Barplot options -->
+<button id="barplotOpenButton" class="side-header collapsible needs-metadata">
+    Barplots</button>
+<div class="side-content control hidden" id="barplot-div">
+  <p class="side-panel-notes">
+    Annotate tips by metadata.
+  </p>
+  <!-- Depending on the current layout, one of the below divs
+      (#barplot-available-content or #barplot-unavailable-content) will be
+      visible (i.e. doesn't have the class "hidden"). We default to
+      barplot-unavailable-content being visible, since the default layout is
+      unrooted; however, the BarplotPanel object will figure things out on
+      initialization anyway.
+  -->
+  <div id="barplot-available-content" class="hidden">
+    <p>
+      <label for="barplot-chk">Draw barplots?</label>
+      <input id="barplot-chk" type="checkbox" class="empress-input">
+    </p>
+    <div id="barplot-layer-container" class="hidden">
+      <hr />
+    </div>
+    <div id="barplot-add-options" class="hidden">
+      <p>
+        <label for="barplot-add-btn">Add another layer</label>
+        <button id="barplot-add-btn">+</button>
+      </p>
+    </div>
+    <div id="barplot-border-content" class="hidden">
+      <p>
+        <label for="barplot-custom-gap">Distance between tree and barplots</label>
+        <input id="barplot-custom-gap" type="number" class="empress-input">
+      </p>
+      <p>
+        <label for="barplot-border-chk">Add a border around barplot layers?</label>
+        <input id="barplot-border-chk" type="checkbox" class="empress-input">
+      </p>
+      <div id="barplot-border-options" class="hidden">
+        <p>
+          <label for="barplot-border-color">Border color</label>
+          <!-- Will get turned into a Spectrum color picker by
+               BarplotPanelHandler
+          -->
+          <input id="barplot-border-color" type="text">
+        </p>
+        <p>
+          <label for="barplot-border-length">Length</label>
+          <!-- Minimum, default, etc will be applied by BarplotPanelHandler -->
+          <input id="barplot-border-length" type="number" class="empress-input">
+        </p>
+      </div>
+      <hr />
+    </div>
+    <p id="barplot-update-options" class="hidden">
+      <button id="barplot-update">Update</button>
+    </p>
+  </div>
+  <div id="barplot-unavailable-content">
+    <p class="side-panel-notes" style="font-weight: bold;">
+      Barplots are only supported in the rectangular and circular layouts.
+      Please change the layout in order to use barplots.
+    </p>
+  </div>
+</div>
+
+<!-- Shear options -->
+<button id="shearOpenButton" class="side-header collapsible needs-feature-metadata">
+    Shear Tree</button>
+<div class="side-content control hidden" id="shear-div">
+  <p class="side-panel-notes">
+     Shear the tree to tips with certain feature metadata values.
+  </p>
+  <p class="side-panel-notes">
+    <span style="font-weight: bold;">Warning:</span> By design, shearing
+    will change the topology of the tree: the resulting visualization may be
+    misleading, especially if shown without context.
+  </p>
+  <p class="side-panel-notes">
+    <span style="font-weight: bold;">Performance Note:</span> If shearing is
+    taking a long time for your dataset, you may want to try disabling tree
+    coloring and barplots before shearing.
+  </p>
+  <div id="shear-add-options">
+    <p>
+      <label for="shear-feature-select">Shear by...</label>
+      <label class="select-container">
+        <select id="shear-feature-select"></select>
+      </label>
+    </p>
+    <p>
+      <label for="shear-add-btn">Add shear filter</label>
+      <button id="shear-add-btn">+</button>
+    </p>
+  </div>
+  <div id="shear-layer-container">
+  </div>
+</div>
+
+<!-- animate Options -->
+<button id="animationOpenButton" class="side-header collapsible hidden">
+    Animation</button>
+<div class="side-content control hidden" id="animation-div">
+  <p class="side-panel-notes">
+    Color nodes in the tree that are unique to certain groups of samples
+    (specified by the trajectory) at different timepoints throughout a
+    gradient.
+  </p>
+  <p class="side-panel-notes">
+    <span style="font-weight: bold;">Warning: </span>
+    Certain tabs will be disabled while the animation is active.
+    To re-enable these tabs,
+    stop the animation by clicking on the "Stop Animation" button.
+  </p>
+  <p>
+    <label for="animate-color-select">Color Map</label>
+    <label class="select-container">
+      <select id="animate-color-select"></select>
+    </label>
+  </p>
+  <p>
+    <label for="animate-color-reverse-chk">Reverse Color Map</label>
+    <input id="animate-color-reverse-chk" type="checkbox" value="false"
+           class="empress-input">
+  </p>
+  <p>
+    <label for="animate-gradient">Gradient</label>
+    <label class="select-container">
+      <select id="animate-gradient"></select>
+    </label>
+  </p>
+  <p>
+    <label for="animate-trajectory">Trajectory</label>
+    <label class="select-container">
+      <select id="animate-trajectory"></select>
+    </label>
+  </p>
+  <p>
+    <label for="animate-collapse-chk">Collapse Clades</label>
+    <input id="animate-collapse-chk" type="checkbox" value="false"
+           class="empress-input">
+  </p>
+  <p class="side-panel-notes indented">
+    If checked, collapse all clades whose members share the same sample
+    metadata value.
+  </p>
+  <p>
+    <label for="animate-line-width">Extra Line Width</label>
+    <input id="animate-line-width" type="number" value="0" min="0"
+           step="any" class="empress-input">
+  </p>
+  <div>
+    <p>
+      <button id="animate-start-btn">Start</button>
+    </p>
+    <p>
+      <button id="animate-stop-btn">Stop Animation</button>
+    </p>
+    <p>
+      <button id="animate-pause-btn">Pause</button>
+    </p>
+    <div>
+      <p>
+        <button id="animate-resume-btn">Resume</button>
+        <button id="animate-prev-btn">Previous Frame</button>
+        <button id="animate-next-btn">Next Frame</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- options to export plot as images -->
+<button class="side-header collapsible">Export</button>
+<div class="side-content control hidden" id="export-div">
+  <p class="side-panel-notes">
+    Export images of the tree and its legends.
+    Note that PNG exports will change as the tree is zoomed and panned.
+  </p>
+  <!-- Applying the margin: 0 auto; style to the exterior <p> doesn't work;
+       the centering requires it be applied to each of the buttons
+  -->
+  <p>
+    <button style="margin: 0 auto;" id="export-tree-svg-btn">Export tree as SVG</button>
+    <button style="margin: 0 auto;" id="export-tree-png-btn">Export tree as PNG</button>
+  </p>
+  <div class="needs-metadata">
+    <p>
+      <button style="margin: 0 auto;" id="export-legend-svg-btn">Export legends as SVG</button>
+    </p>
+  </div>
+</div>
+
+<!-- Tree statistics -->
+<button class="side-header collapsible unpopulated" id="stats-btn">Tree Statistics</button>
+<div class="side-content control hidden">
+  <p class="side-panel-notes">
+    Information about the tree's topology.
+  </p>
+  <p>
+    <table style="margin: 0 auto;">
+      <tbody>
+        <!-- Lord, forgive me not for what I've done but what I'm about to do -->
+        <tr>
+          <td class="header-cell" style="text-align: center;" colspan="2">Node counts</td>
+          <!-- Add padding between the two horizontally separated "halves" of the
+               table. Based on alternate option listed at
+               https://stackoverflow.com/a/11801090/10730311.
+          -->
+          <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td class="header-cell" style="text-align: center;" colspan="2">Node lengths</td>
+        </tr>
+        <tr>
+          <td class="header-cell">Tips</td>
+          <td id="stats-tip-count"></td>
+          <td></td>
+          <td class="header-cell">Minimum</td>
+          <td id="stats-min-length"></td>
+        </tr>
+        <tr>
+          <td class="header-cell">Internal nodes</td>
+          <td id="stats-int-count"></td>
+          <td></td>
+          <td class="header-cell">Maximum</td>
+          <td id="stats-max-length"></td>
+        </tr>
+        <tr>
+          <td class="header-cell">Total</td>
+          <td id="stats-total-count"></td>
+          <td></td>
+          <td class="header-cell">Average</td>
+          <td id="stats-avg-length"></td>
+        </tr>
+      </tbody>
+    </table>
+  </p>
+  <p class="side-panel-notes">
+    Please note that the root node's length, even
+    if specified, is not included in the node length statistics. Node length
+    statistics are rounded to four decimal places.
+  </p>
+  <p class="needs-feature-metadata side-panel-notes">
+    These statistics will be automatically updated as the tree is sheared
+    using the "Shear Tree" functionality. Note that, in the rare case when
+    the tree is sheared to only contain the root node, the root node will
+    be counted as a tip instead of an internal node.
+  </p>
+  <p class="needs-metadata side-panel-notes">
+    Note that these statistics only pertain to the tree shown here,
+    and don't account for modifications to the tree done before this
+    visualization. For example, if the
+    tree was sheared to a table using Empress' command-line interface
+    (this is the default behavior of the
+    <span style="font-family: monospace;">shear-to-table</span>
+    parameter of <span style="font-family: monospace;">community-plot</span>)
+    then the node counts shown here will only reflect the
+    resulting sheared tree.
+  </p>
+</div>
+
+<!-- Global settings -->
+<button class="side-header collapsible">Settings</button>
+<div class="side-content control hidden">
+  <p class="side-panel-inner-header">
+    Node circles
+  </p>
+  <p>
+    <label for="display-nodes-select">Show node circles?</label>
+    <label class="select-container">
+      <select id="display-nodes-select">
+        <option value=2>Hide all node circles</option>
+        <option value=3 selected>
+            Show node circles for internal nodes with only one child
+        </option>
+        <option value=0>Show internal node circles</option>
+        <option value=1>Show all node circles</option>
+        </option>
+      </select>
+    </label>
+  </p>
+  <p class="side-panel-notes indented">
+    Controls behavior of when to draw circles at nodes' positions.
+    Note that, in the rare case when the tree is sheared to only
+    contain the root node, a circle will nonetheless always be
+    drawn for it to serve as a visual marker (unless "Hide all node
+    circles" is selected).
+  </p>
+  <hr />
+  <p class="side-panel-inner-header">
+    Camera
+  </p>
+  <p>
+    <button id="center-tree-btn">Reset Camera</button>
+  </p>
+  <p class="side-panel-notes indented">
+    Repositions the camera at the center of the tree.
+  </p>
+  <p>
+    <label for="focus-on-node-chk">Focus on selected nodes?</label>
+    <input id="focus-on-node-chk" type="checkbox" checked="true"
+           class="empress-input">
+  </p>
+  <p class="side-panel-notes indented">
+    If checked, the camera will automatically focus on nodes that are selected
+    via searching by name or by clicking on an arrow in a biplot.
+  </p>
+  <div class="needs-metadata">
+    <hr />
+    <p class="side-panel-inner-header">
+      Clade collapsing method
+    </p>
+    <p>
+      <label for="normal">Normal</label>
+      <input type="radio" id="normal" name="collapse-radio" value="normal"
+             checked="true" class="empress-input">
+    </p>
+    <p class="side-panel-notes indented">
+      The shape of the collapsed clade will show both the depth and width of the
+      clade. This option applies to all layouts.
+    </p>
+    <p>
+      <label for="symmetric">Symmetric</label>
+      <input type="radio" id="symmetric" name="collapse-radio" value="symmetric"
+             class="empress-input">
+    </p>
+    <p class="side-panel-notes indented">
+      The shape of the collapsed clade will only show the depth of the clade but
+      the shape will be symmetric w.r.t. to the root of the clade. This option
+      only applies to the Rectangular and Circular layouts.
+    </p>
+  </div>
+  <div class="needs-community-data">
+    <hr />
+    <p class="side-panel-inner-header">
+      Tree coloring
+    </p>
+    <p>
+      <label for="absent-tip-chk">Ignore absent tips?</label>
+      <input id="absent-tip-chk" type="checkbox" checked="true"
+             class="empress-input">
+    </p>
+    <p class="side-panel-notes indented">
+      If checked, tips not represented in the current sample selection are
+      ignored when propagating the color of a clade. Applies to sample metadata
+      coloring, animations, and sample selections in Emperor. We recommend
+      changing this setting before starting an animation; otherwise, this
+      setting may only be partially applied throughout the animation.
+    </p>
+  </div>
+</div>
+        </div>
+
+        <!-- show control panel button -->
+        <button id="show-ctrl" title="Show control panel" class="hidden unselectable-text">&#9699;</button>
+
+      </div>
+    </div>
+
+    
+  </div>
+
+    <!-- node selection menu box -->
+    <div class="hidden" id="menu-box">
+      <h1 id="menu-box-node-id"></h1>
+      <p class="hidden" id="menu-box-node-name-warning"></p>
+      <div id="menu-box-node-length-container" class="hidden">
+        <strong>Node length:</strong>
+        <span id="menu-box-node-length"></span>
+      </div>
+      <!-- Feature metadata section -->
+      <div id="menu-fm-section">
+        <hr />
+        <h3 id="menu-fm-header">Feature Metadata</h3>
+        <p id="menu-fm-no-fm-note"></p>
+        <table class="menu-table" id="menu-fm-table"></table>
+      </div>
+      <!-- Sample metadata section -->
+      <div id="menu-sm-section">
+        <hr />
+        <h3 id="menu-sm-header">Sample Presence Information</h3>
+        <p id="menu-box-node-not-in-table-warning"></p>
+        <p id="menu-box-sm-notes"></p>
+        <table class="menu-table" id="menu-sm-table"></table>
+        <div id="menu-sm-add-section">
+          <strong>Select a metadata column to summarize</strong>
+          <label class="menu-select-container">
+            <select id="menu-select"></select>
+          </label>
+          <button id="menu-add-btn">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree coloring legend -->
+    <div id="legend-panel" class="unselectable-text">
+      <div id="legend-main" class="legend hidden"></div>
+    </div>
+  </body>
+
+  <script>
+    var empressRequire = requirejs.config({
+        'baseUrl' : 'support_files',
+
+        // paths are relative to baseUrl (.js not needed)
+        'paths' : {
+            /* vendor paths */
+            'jquery' : './vendor/jquery-2.2.4.min',
+            'glMatrix' : './vendor/gl-matrix.min',
+            'chroma' : './vendor/chroma.min',
+            'underscore' : './vendor/underscore-min',
+            'spectrum' : './vendor/spectrum.min',
+            'toastr' : './vendor/toastr.min',
+            'filesaver': './vendor/FileSaver.min',
+
+            'ByteArray' : './js/byte-array',
+            'BPTree' : './js/bp-tree',
+            'Camera' : './js/camera',
+            'Drawer' : './js/drawer',
+            'SidePanel' : './js/side-panel-handler',
+            'AnimationPanel' : './js/animation-panel-handler',
+            'Animator' : './js/animator',
+            'BarplotLayer' : './js/barplot-layer',
+            'BarplotPanel' : './js/barplot-panel-handler',
+            'BIOMTable' : './js/biom-table',
+            'Empress' : './js/empress',
+            'Legend' : './js/legend',
+            'Colorer' : './js/colorer',
+            'VectorOps' : './js/vector-ops',
+            'CanvasEvents' : './js/canvas-events',
+            'SelectedNodeMenu' : './js/select-node-menu',
+            'util' : './js/util',
+            'LayoutsUtil': './js/layouts-util',
+            'ExportUtil': './js/export-util',
+            'TreeController': './js/tree-controller',
+            'Shearer': './js/shearer',
+            'EnableDisableTab': './js/enable-disable-tab',
+            'EnableDisableSidePanelTab': './js/enable-disable-side-panel-tab',
+            'EnableDisableAnimationTab': './js/enable-disable-animation-tab',
+
+        }
+    });
+
+    empressRequire(['jquery', 'glMatrix', 'chroma', 'underscore', 'spectrum',
+                    'toastr', 'filesaver', 'ByteArray', 'BPTree', 'Camera',
+                    'Drawer', 'SidePanel', 'AnimationPanel', 'Animator',
+                    'BarplotLayer', 'BarplotPanel', 'BIOMTable', 'Empress',
+                    'Legend', 'Colorer', 'VectorOps', 'CanvasEvents',
+                    'SelectedNodeMenu', 'util', 'LayoutsUtil', 'ExportUtil',
+                    'Shearer', 'EnableDisableSidePanelTab',
+                    'EnableDisableAnimationTab'],
+        function($, gl, chroma, underscore, spectrum, toastr, filesaver,
+                 ByteArray, BPTree, Camera, Drawer, SidePanel, AnimationPanel,
+                 Animator, BarplotLayer, BarplotPanel, BIOMTable, Empress,
+                 Legend, Colorer, VectorOps, CanvasEvents, SelectedNodeMenu,
+                 util, LayoutsUtil, ExportUtil, Shearer,
+                 EnableDisableSidePanelTab, EnableDisableAnimationTab) {
+        // NOTE: the contents of this line are validated in the python
+        // integration tests. If this line is changed somehow, the integration
+        // tests will need to be updated accordingly.
+        var isCommunityPlot = false;
+
+        var isEmpirePlot = false;
+
+        // create EnableDisableSidePanelTabs to disable when animation is
+        // running.
+        // This must be done first so that everything else is linked properly.
+        // For example button click events will no longer work properly.
+        if (isCommunityPlot) {
+            var tabs = [
+                {
+                    tabName: "Sample Metadata Coloring",
+                    container: document.getElementById(
+                        "sample-metadata-coloring-div")
+                },
+                {
+                    tabName: "Feature Metadata Coloring",
+                    container: document.getElementById(
+                        "feature-metadata-coloring-div")
+                },
+                {
+                    tabName: "Shear Tree",
+                    container: document.getElementById("shear-div")
+                },
+            ];
+            var sidePanelTabs = [];
+            // wrap the sidepanel tabs in a EnableDisableSidePanelTab
+            _.each(tabs, function(tabInfo) {
+                sidePanelTabs.push(
+                    new EnableDisableSidePanelTab(tabInfo.tabName,
+                        tabInfo.container, isEmpirePlot)
+                );
+            });
+            var animationTab = new EnableDisableAnimationTab(
+                document.getElementById("animation-div")
+            );
+        }
+        // initialze the tree and model
+        var tree = new BPTree(
+          [np.uint8(162), np.uint8(183), np.uint8(52), np.uint8(77), np.uint8(237), np.uint8(109), np.uint8(209), np.uint8(210), np.uint8(244), np.uint8(166), np.uint8(161), np.uint8(109), np.uint8(208), np.uint8(55), np.uint8(6), np.uint8(233), np.uint8(180), np.uint8(141), np.uint8(238), np.uint8(52), np.uint8(110), np.uint8(166), np.uint8(16), np.uint8(31), np.uint8(233), np.uint8(142), np.uint8(238), np.uint8(147), np.uint8(111), np.uint8(109), np.uint8(160), np.uint8(211), np.uint8(180), np.uint8(210), np.uint8(163), np.uint8(208), np.uint8(130), np.uint8(65)],
+          [-1, "bf7348b2028d96bee8686238f2bc5aa2", "ce54b572b93affd7afe291853b517e21", "a6bfdb3176b2fc52c2e55ef46213f792", "0.975", "0.962", "5e50a007ea9a7f83275157c158916fcc", "9a13cbb8e1b12468bf22d6a05aafb0c0", "79930541b37f85bd77cce357cd63dbb4", null, "f5bf7ef226b458f24103a3531394ec7d", "0.787", "ce0c98486c0934c2f5922589f4883a46", "1eeda6a9e8ebf5b66a6506ec39ce3f2a", "0.978", "a6ccec9ec008fe4a2f332209583c4012", "0.759", "4feb426703234389503a7b994773d50c", "5328bc3fa40912ff2a09f9a53ac20c93", "0.605", "0.776", "5b03cf4c1ca93f0efa5c6862b93e7988", "0.528", "0.951", "0.940", "84135a0b2ffd4bf0902d223d4ee001dc", "03ad6281e55a5d2f7eb1a7f44a2d0fd5", "3b14c1024195b7dec861c34006466104", "8bd5850283c06824950a27a3d7fe5b62", "0.924", "0.911", "0.569", "0.951", "0.924", "0545208475631581b404f77c00d5b7f9", "b7aa21bce8178648a994aa472efa61eb", "ff8628c1282284ef82446bf877e3c63e", "54a43d2113c13203e813d22b17f3f370", "0.753", "e127450ed2ad1088a651c6a3f8a405b3", "7d02f99e2ea00512b055a4e70f84c18b", "0.323", "0.987", "0.935", "0.984", "a69c0a328e1b282389062478c5d49c3a", "ed78bbc1db0ff176088ec1eeb30cde95", "b44aff2995f396f00ad579d8e6684335", "50524947f4796771e664e0e788ece0f3", "daae43be6cf06991f62a085ba8bff3b6", "f74772c312ecf2f0278c402953e04d93", "0.796", "0.870", "0.712", "917d299eeca539b3dfba563baabc4b14", "b69270fb79dbb177aa2f63854008fe4a", "0.965", "d60593a75368eb2dd66ecbbec3313863", "0.406", "84efa3b84fa1355041fed5f6a80f5716", "62782073afab9fa314b0ed9963ca35fb", "0.657", "0.373", "ee0b07653ef54e892656c218fc5b2667", "e5844d5be182a15a7e488938825fbc61", "e31cfe9cd6ab8b39760063403957881d", null, "22bf6332ac9c461ca5f944471bffab69", "e7ad4c0767b33e0a46ee82dba4ad02f0", null, "0.620", "1.000", "e1f3dca7a444e322745b21064cf6fbd2", "ee6709e42adcaabd68929412c67480fd", "0.950", "0.691", "0.693", "5858157a5f3c4bdbc235927eae7ff303", "129500150cad877075ed12b0c9424282", "07f36c76c2ce62d796342c598e0d6549", "c130ff4bc4f4b06b3e42f5c64b6ee6a0", "76b219eb7351347070ab7205275b9c02", "0.741", "0.979", "0.956", "4c2b64b57a4d0bf53cb325a4284bec4f", "0.796", "0.851", "350fb0a153502ce2dd4fa0cf051d3fbb", "876295a7cd8394f70f60a6fb62837bdd", "0.952", "c1def48b42e159b33dd366fb124ea638", "02408cd609a6b7f8134da2f8955136ac", "0.894", "f80166d86a7f15b69b6ac97505299c3a", "08a568a23077f42668f7b4b5e0ce437e", "0.873", "0.869", "0.966", "0.812", "0.757", "82b6b13c800633859b139cf0569b4cda", "4db1f9668fcebff493189edcbc1bf58c", "79c95ccc1b36188bcfef3723d0f03972", null, "0.876", "0.000", "edc1dfcd54e37069be79c20ae7bfd68f", "0ebb2cf4a2017aeaefadf9ae5062eb62", "1930d2ae4018583d606e705beea31bd1", "0.962", "e4597f1dce864c29882fa64f616d1a6c", "fe22960889931878eec926a6ccfb5d29", "0.554", "0.719", "1b7d75fb86963bedb10092b550a0899f", "6aa98c5a8b3de32a7b3bcaf9def9328b", "0.456", "0.913", "610fec3c1f64661f446a6e8270f23d0c", "72e530a4206f2e4804d502f4dfca8387", "2eb2fe0471e37d54b5e1c47660220ad6", "0.858", "0.794", "33ea9f7df7a02a6f06fb9700ed440401", "0.886", "0.759", "0.767", "0.752", "0.948", "0.370", "0.787", "0.818", "0.354", "9a76c2c2904fcae623e236b6818a712e", "634e293920d238dfa24961d096247760", "e4ef1c7b616eb842c0ff7a327e83bd76", "18812bd61aeb2cea2081498cfa9ee3c8", "0.923", "0.907", "0.146", "0.942", "26c101a4b9028cdc693e0e4849d40e5e", "fdbff060c0adc3184b21540df9bbbee1", "7bacf637b0a935317e9de08fd1bcb72c", "df3a540f09c1e5ddac171aaeac341297", "0.924", "0.230", "0.963", "1c4f71b06ad9d613e117b633de27a107", "26c300b3b02b0858d235a56cf8d7e445", "5292f29cab69c370997bcb039ef68d64", "938fbbe51af86d1d7ebd6817a0f0bd24", "04bf997e28586676565788b50e195fad", "0.862", "efa934e07029e49f4b1959b33c677589", "0.751", "bf611493002f5918a68778bde2def567", "0.383", "99deb3c5ecb022ec05609ebd1112a557", "cbd78efd85b15ef4ac0450160a74dda3", "0.976", "405cffae21e3269ae7c795d56acdb42a", "a81eeef79efbeed60fe844aa4e71619b", "0.078", "0.977", "0.891", "0.548", "0.000", "0.651", "0.834", "1.000", "ae45911056c1bd79d90419d1b38536ca", "81886cf0631975aa39dbbd891ce1cf09", "7421a0056850e30172e2c541c9215c11", "0.614", "0.999", "d46e2205f0c6ecf67b51f83d111c509c", "c939ee112ba982665e012437dae05c1e", "0.931", "2c545231aacaf1d8c6b3f8f8930d4363", "5752aaaa7c9ba87c72ad18e41f65f7ec", "0.744", "0a9deaab12a85c13e5bb85c37b89803b", "45a580e568eadcf36b7c1afcbde1ab83", "efe7065cac8d8a73ea31de1bb2deab8b", "0.760", "0.936", "a7b2ebeb585c5a9437a670f13d3234db", "46f09d7aa9bcac4a3e3e8574925eb57a", "0.904", "0.824", "0.978", "0.861", "0.873", "c2c9d37c184935fe0f8a889e7105c241", "153c93e302c4700f4c3515546aa47a1f", "0.417", "499f1c879aa937fd84ec658999d69c43", "26d6bdf4eb4f1daf826c5efa6f103407", null, "077748f7cf6f42384b308cf90a7ecd51", "0.769", "0.998", "65056176946beea533f481d9ae31b237", "0.778", "0.887", "17ec4b43927677ab3c91aaf0203562ee", "3b010dbd9eae72a79f11af5d24eb3ca3", "7b28c20e72c6c95b3e604f0849245770", "0.955", "1.000", "de6d4db1f82eeba7ec07206846619c2c", "b6b86531ef8d5b24a2b1f0d0cbb40c76", "ce8630cbd65f0a428f0934125e63a87d", "e8e993942123d06d22d89137fad9ff2b", "0.003", "0.845", "0.999", "1f6f400a4c40ce9f7cea0e7145938045", "0.000", "8fd618f97a48e4eb208b0445dbb10d8c", "0.994", "0.854", "327ef2b0b4b3dc3462bf8052944f8dad", "06538b77450f85903962437f449fa60a", "1.000", "3abae39e94cf51920aec2b9fb42b53a9", "a828d86ae6b1ae29eea5092499bc99df", "42bff550a49ca360c6036958d3026f99", "62dc76a09326c359be5946507e82e9fa", "433ec68e343c6bb9e64fb57acc6d3f99", "0.746", "0.865", "0.859", "0.888", "0.788", "35f3ce6a0ee2829e6ccb193be3c4338b", "607a1bcc4baccac25c567bbb74d81cdf", "1.000", "d0a3a2fe34dd43b814d32a8693d90ac3", "2792ecf14a0a9f7b090b7e321e21e395", "0.992", "bf2978bc52b8731cc024bb07eeecf6ed", "88eb686ca6222ba1acb01f0bcba963dc", "0.900", "0.918", "3699e193fd5321a32e8ab1100ae70161", "e6241ffe2fa3e3a874f232d6aafd0177", "0.864", "e067beeaad3ae7f401b782ffbaafaf51", "8d26ca4faf4110eddd340668f207b0a9", "93cb8abd1a94f0f8ddaab5d3e411b6a6", "0.866", "ce72009c0c36b5ff547b9a0c89f669ce", "ce06b1617be391e39bc65dcce656f77b", "0.702", "0.986", "0.512", "0.811", "0.850", "0.886", "0.000", "60ab4dde5e0935a970bfb87f9b7952b1", "0.966", "11401ee29264e6f60b65371a2601cd07", "b664aba9c5e0e5cc58a311f8ff3d8b0c", "0.836", "767a9761e9034bc6299ae0be816c4df2", "c0d5dcb7d80d5dae81f286d953193674", "9faa90542b330fa9e0c926e24267ec99", "0.979", "0.998", "208a08b90e13b04d2ef2f584535a2d39", "a75889212ce7bdd5044cac71248d0f91", "0.992", "0.763", "0.901", "af8d35fca7a50d173200be312760ac6b", "0.717", "f1b5d72cafaaea7b61c531cb90452d9c", "992f0b2cc98ca40445e88a98a044838d", "9cf3ece63fb5e5d8a14a81d6ec6f2b7b", "9acb555d3c5dd77e9035a661e7ad1bb6", "721bbde09abf2f51fc7d8caeab5b22f1", "c9b86bfe30a9e46284b5f72efbd07e3d", "0.966", "0.982", "0.773", "0.640", "0.870", "df0e3d38eec730326754d8c17a8b8efe", "9fec7bdd6bd88e710bd69b15692e54a0", "874845de47defb9a9675322cda22c111", "0.994", "95fdd816723ca482a5caba10bea171c8", "c92bce8f9a0355882175820144995211", "0.888", "2ef1e51ab1cf99a3c6417b05a060830e", "0df6c802966e8670279671824da4f10a", "e147f17187ee6e0d8e84bdd370bfb053", "0.856", "0.946", "0.250", "0.924", "0.749", "45b76e49b6500d8d245c2f27f6fbb143", "f7a5bb26f18474e6c701f3da11ad9e22", "6116fd7dc95407952dfa6a8cad835556", "0.824", "0.999", "c6c3043ce42affeaf7155115d01e70b8", "b0393e75df8338f8224463cb1b34efbd", "1485707115ce4b362d3e7c8944c55a4f", "0.000", "0.906", "0.863", "0.990", "0.783", "6b1af317cf1d5332c7c9181449ac1809", "7799200040e84123975fe96a93db4500", "e5ee1d85ad16f8c94333754ffe9430ff", "2197e3c697e9c1427ae1c3277d3c71f9", "55f2658f7b605509d87faed6518dd8f7", "f5e65944985d39991cba3fab949a0150", "0.911", "1.000", "0.966", "0.736", "0.820", "a9973ca59e47373fd5b3b1cfdf2611a6", "484f362cffbe754445394334e80b1a97", "9f891738b48e6bd0bd0006c851be68ff", "0.932", "0.965", "ce78414357068359ddae6a47b6592a08", "924ab5cb47309a83e71d60320378d194", "7a8d0125158d1dded935e4652afc68d7", "0.741", "0.828", "4066e07db1bae989fd02d771401e3b09", "2747bd94a19fbfa82f1e90e326d2f100", "7963654625b74816cd1eb1373a31352b", "0.940", "0.869", "851bd80d021dcf4e9f3f11e95310927c", "6a8118b17d1d40cf877db24449ceb616", "401e9cda8dd173db76e03cfe30f2274e", "0.997", "d92d53b67f4b4a2516ca359494db4c24", "920a4d1a3e7643a60851fd9c292f5b09", "38bf4b5757f873111fc314058871c1dd", "0.885", "0.974", "0.789", "045acd620c390c80b3447bae8b6a039b", "dbf83ada1041e3b4fdac47d2dee0a5e5", "0.958", "8da18b476b64f6f053647455b6890f80", "2dfc021ab6895ae3b4c956d50052f17e", "0.969", "c803726dac1aad6846d209e915cea275", "912487364b4fda5993a03f47d60111e9", "0.980", "7376eb30d4a59d2e35c4a558fa824a08", "d06a285ea63bd5cc53a4b0e46d0cdd72", "0.941", "0.978", "0.726", "0.921", "0.988", "bf34422106e5974ddf75216e2c05273c", "766219c96c8e1cd5e3934f165d0fb3e7", "0.911", "0.760", "0.779", "0.736", "885af48524af5ccac2ffcff5abf6c1f9", "0.989", "0.567", "86555947ddfc576c1bb9c42deb3998df", "65b43ef12cd01434a8f7c309eccd229b", "0.972", "0.997", "e8d9cf1269b3bc64d0ea83e604600031", "20ac30224f0d6923615fbc03ac84563f", "8387a276411247208f7113b31e10506f", "0.937", "0.884", "f3e9d78daeea42d345080748e31ae3dd", "0.736", "0.736", "958d78a02bef69a795806f97adb117ea", "977f1d77596dcc704fe3613b0f48d0b3", "0.897", "805c0959b90cd47bb52d9f6571c5fb6a", "0.843", "0.993", "48120f2d28136884787660eb4953652a", "ee766857ab5fc018ac26632146bc90e1", "0.886", "5a84cbca09090824be95118781802f82", "533d12102a68064994d75cd26a0fe0e8", "cc82a5a0b284dea47583c8afa5a99755", "872a193e37ad06aa0996e744c442e0f0", "0.989", "c5aad5ebe154556c8422b669638c0745", "003a296ba4c55f34d62c224bda66f5a9", "f9f60c2b7142924f5bf6369037234212", null, "0.972", "0.929", "ecb3759e804e8c86d9fb0de817207fe9", "0.766", "0.988", "0.473", "0.086", "0.771", "17ea156fc9f9b76d7d2de31320d32005", "12470c486f558c083c46b45408cae9c6", "35c1c02a23cbeaa57ef42681d720c142", "0.000", "0.949", "0.795", "81f59f6a76c8682de1719c97b5b24173", "99ee92e36a3bfda54437f2370facd8c8", "e87578d6000491e47c9037be98d695e8", "0.884", "0.994", "0.882", "9984cb69ccbc872cca3220a63ad72684", "4ed11405ae0cd46d8c58ce2a90094823", "021b898345f1a2b66c1e0da5f63a93c6", "cc3a76df8bb1adbfe65bff419cd1e153", "a5e441397cdca65bc4e9d7378c95e361", "0.467", "f64f55b1af9b863086103dbf76e94e9f", "0.891", "0.750", "2a89717b521dc276ae1bd08090909dc4", "9f4373f8c06d8d3224c4a427ef0d8b24", "0.906", "0.772", "1.000", "0.958", "4a18a72af06424cd6600b6f548ea8f05", "60f93fed83d17d00026301844c347826", "405600e715167b5f59ca7a6438a970e2", "e5d55481f7455ae8a4620451dc7ac39a", "0.877", "0.832", "f7441939626c22a8d8651f459df8143f", "b9ed1a2c86edb972db7742981e6901da", "13016b09f7d9ec021bdf6b8eb3ebe1c2", "306546f5f068c3630323684d422f1e95", "667e2095050a61e299876d8b5b13a0fc", "cd8d2ddb88bbe44dfa61a34dfd244b0b", "0.807", "0.972", "8a47d1c31ecaf4f32812c430bbb43980", "0.590", "0.829", "0f2a5acc53e55f2c9f0c7409421dc5a0", "f295f1c1f62cb4e65ead126b0420e0fe", "85ad3838de9cd515fe87a67ecc1e8637", "d85f7c80c1ad16d5903ce9d78ade5916", "0.580", "0.955", "0.953", "0.184", "0.738", "0.907", "0.071", "0.909", "0.868", "0.811", "0.979", "10ff4631cc5198bb5add391eccbd5a09", "0fde62806e4413be1846e836dba2c786", "0f276b28ea3ba352f6fd667c1e298c38", "70792b6ac0d2c723cec8c12dc6576345", "0.966", "d5f4e724b7fd8b007ef230dbd43c7a3c", "9e9a1d0b80c0d0fd810a4373f5673994", "0.966", "5a5dc75a7fe8a314a2510fa53aba2bee", "36d9f553b6f26520e7a6f8671cdde1f5", "12691e42e5f8f917a8ca55e38670afdd", "0.780", "0.874", "c5e5fd5c9af649aec207b86dee76d5f3", "4cca3c3fed7ee628fc7001d54a1c7209", "0.849", "0.000", "d60f301b7a949b89d4ab416fd6023373", "16d0f6f0cc97fb8539a94bb9b23d40a2", "8fb589311fe1005e1960219a8c2cdedf", "0.572", "0.988", "30598f0d14cb4af2c3150ebb17667b95", "41f5c878cebd5919bf3ec822bcda3aa7", "0.900", "0.914", "0.972", "0.825", "0.895", "3e9e6197d0866ceeaa0d19f676601a4a", "dc1ddb39b50d56df725a0b5b4487c54c", "950524da5744abc0ef286d09c7f75bc3", "ea85843a039b52c9c5f6c5dd29012150", "c8e34bb10306cd8cc72e42eb1313b7c8", "eaedd565dd96a679cc4cbf9b67beea83", "0.887", "0.750", "0.862", "0.742", "0.816", "0.753", "0.900", "a6b8bcc8499b4128678a3a671a0bd004", "0.971", "0.854", "78a36ed56c29c2757fe5dda523987b7c", "23176b0d224a85cab9385a426000544f", "f5e67a7348e7a7283821d634a2ea4309", "0.980", "0b03b4e824c1d7028167ed8ffccf217d", "48144f36a27f2362d91eacd511ac5ca0", "737927d1823aa67bfa4023732835fbac", "0.289", "fc6975168e2cd55111358a62c44bc63d", "0.318", "0.718", "0.871", "0.895", "5e18094f37d33836726fabc09f8e46fc", "04611dabe3583caf155167674ef7e0e4", null, "85c902d02faa7542bbb97dc6bae04808", "0cd5d3a5e5934527275647a4089ad558", "0.998", "daf49f53bc72de756418574b24e87184", "0.474", "82428f73d298458b5521d85584416970", "0.948", "0.969", "0.745", "646ce7e45794e2cacc0d6acf2cf3c6ed", "c4170fd31c9aceb042c699e6c8b0f486", "44133ba0a919858947f24b2d9559dff6", "a4c74aab9d8c07aba4267a1f8274315c", "0.817", "e36be349dea51383ef7c2f26dd242def", "dca8a152f35348bd9540d2c52604fdce", "8049ffe422892439d139c19c25df4831", "0.881", "0.783", "0.919", "df4d1c713c5dba30c53365d6a47af819", "b44c044230b4cbfe1ed3869e6c5bc5fd", "5b9305abe9131ab077f971551c108db7", "f3ab5707834c9572c581b0b00c369ec3", "0.864", "0.947", "0.753", "0.927", "0.862", "7b5b130650d5363701e3d6d7aefa0cc3", "0a36ee3b531bd1de5c74674430c585d1", "0.776", "4115cd19d50e5a6b8550c3a1f9a6c75e", "64b2d514b27b2e29982e5fa59aff8be9", "0.177", "761a5b764f64b30ade5356842706afb9", "11fd1e8fa5e25180c889c0bc960e1a95", "0.888", "0.982", "3c01540f689ab74dc5d2346cebc1f09c", "0.894", "0.922", "0.922", "8ee89f151c34530344deec07ac9bee81", "5810a546133ce2a9e01ba21225a87263", "0.770", "0.802", "1.000", "0.953", "0.892", "0.000", "7ba07e4c2fed4da2d0fffb31ebc6c4ae", "3d2cd874a4eea35af603ca0c0c25c89f", "223141ee97781bbede60bb494d599448", "c3e8496b70f7341450e298f29c5fa4e5", "0.375", "de3f4613e9a94b62157b9f3309c18a16", "0.000", "b1652dc664d4e8ce2d123d26687d1204", "0.914", "0.901", "0.000", "8e6f1849d93723676dff6cb1962941a8", "531aa5958090e7b9ccce63177bb153cc", "7d42da3bc07bf8ba2bd9fa9eac3b72ce", "0.949", "0.727", "0.866", "538add871396bc31fee52b4c6e73542a", "4e0a65b0a2fab7bf0f307d360b679d87", "1.000", "f09f257605135a6049b847768387fb33", "88e2cc3c7ae430fd82f841fcac6d761d", "0.842", "0.816", "62669fe8cbcac323242a062e3c6a3386", "a9241ac1841b7463ed03c02216f5e93d", "80dd71f0135ba7b0b937f699b90d18d8", "0.836", "0.376", "0.854", "154813d1bfd52ff763585b4d859d73a2", "324a68faea87d16c8e64abc6856e10e5", "5331f57ab0f2e416cce5e856ca82bc07", "8e74f6f63a5f9a304aeb8284be71fd23", "c75ae6008025d80134bd14e9712f9d5c", null, "9ecb011b73b151660fc0f8650ef1da00", "0.000", "0.991", "6ad914e7f81c311b1d7c7921bb90c92e", "6e77545756ddc39c81c925b6fb1c8b17", "0.728", "34e330f47d6b0b3a7742855c99c1730b", "226ab97195d19858d059fffaef17f5d7", "811f358e4e89eecbd75298ffce878cba", "97cedb38639c436b01657f69a87fc45b", "0.614", "0.933", "0.835", "0.915", "0.801", "0.763", "61db0bd527e07336202fd0ff4578c042", "e04cb8c96d35fee0e181a15fc4511d0c", "bfa3561ca0d31bca54be08e2d9f7937f", "5764a2920b99d13e54f43dd869a800c2", "0.247", "31217980cfdf305668ba9c8482a34e81", "c446deb131fcc44553f50d10c5f7e52b", "0.787", "0.983", "da655131b22bfd130476359a287ed672", "901c9973bde010c1a5c49023e63cc252", "0.671", "0.763", "a5a7486c3e60ff3d6cc20e9e6359e7ea", "4598e7db6dff8f019ff4f6c50dc05df4", "0.873", "8eb7d1acec7581cbe5dd736bd3ab2ca1", "0.802", "0.654", "0.197", "0.910", "4ae33466f29277f3cba0834c894ee4a4", "54dcb911e3ab04e9d5b30c3912100b41", "27b0bca5c048a9dfade9558dcf685681", "0.062", "0.756", "476a27c3796dfc1790e181f789663a33", "9c6688b479e664fa9d070647653e49ed", "9b4036adb487adfe4ca484346b5b9a7b", "0.965", "0.483", "1328ddadac3f2d08eb25e79a18f7e574", "9c28c6196fe2e32c6ae054c7ca3067e0", "0.791", "0.879", "0.800", "0.762", "25f537c4856de1617e682de90caba215", "3cec387e3e89982bf989b857f7c296d1", "e578c77e8b6e9a64a2a3c6ef754a355d", "3ff094cb7e0ff63195ab941d8a2c36d9", "4e1bda045e6ba843353281138c649093", "d2be1254f5e7eb97bd42ec342d9cb11d", "0.756", "924668f542df9de35c2226e4a6cf09bd", "2c064ac1dddc6cb98a5ca584a68647f8", "08eedcaf8f982611c4982038139f6271", "b310236a69032ef47e5c274f5256115a", "0.746", "0.648", "0.958", "a927fa934cf9d977992764c4dcba0b7d", "707740d13076516032127f753473cfc3", "cfdf39cd6545fb6a7ddb747c3393c225", "a322a05a29722d4fc3daa71d63cf05ad", "0.299", "3dfaa3fabdf04711351c97af550d2921", "0.900", "07a9e6db8a7c666388ca5a1e1556be69", "0.907", "6c8fd159b1fc28483e06cb2d2c7b1597", "cbbc9e2c35c6198607c01c87e4bb5294", "0.843", "e24e7b9b383a4e46a7761d21ddd703aa", "6aa0eb33a52579e951a7eb630f316369", "edefa736f3fd701281f967fa8952b8f3", "0.860", "0.000", "0.956", "0.860", "0.928", "3b464b2c3ef760585938966db87f55c3", "b2cc6ba17754f8343441016609330459", "37a0a427f45ea3b8299b4a41c10d02e6", "0.748", "0.877", "0.790", "0.824", "0.768", "fd54faa463e99098527833fc9d14c4da", "0.894", "a2059dc1d1825bb8a0a039915d189ef8", "5284495840f983847ec0d0b741a9a471", "0.285", "0.890", "0.909", "0.892", "0.799", "f7931e842cdbe3e397b3362b54c3ec04", "ee9e000f41ac13241706f31fa8565e94", "d80a7337f5b24c90a8cc2dd4d9896e61", "e438498696e4ce6da6b786e98f911a9e", "0.921", "0.876", "6a80c4d47b44c692aeab74181c5fe012", "5d6d200a9ac1ce63fef95fdd57cd4039", "929c99dbf854b1a24d85a380e7b0af8f", "0.966", "0.940", "4380abc163ecefa354d7002925971253", "0.748", "c7e785c8e289c83881a0d6d6c5038baa", "0.554", "3edda5c73200445d7f4cc6417b8366f8", "d3d5f57b1c8aafeca61afdb1627d2990", "0.945", "b8455681fc92d051fdd023aa62417fb3", "91480d7ac14d64784f4ab4c09c88bffe", "d93a3ef54cd04d16c30a94e15287caf4", "df1e3080300aed496c300246714bd838", "a490e1b882ad784ba673e53304d25896", "0.935", "0.794", "0.774", "0.929", "c2ddb61bd6c1dcdfbffd74726cbb802a", "c62891b6878257f53d1cac38aeb54fe8", "8c65d91e013525d1c8606fab40e0a88b", "0.931", "0.798", "0.812", "0.892", "934b1ae719df62ead4cfe21925f42049", "9d24a5958524b572f096d356fd33187c", "cbdc0f4fcc7b1e56aacc302c2b9b870c", "4a6cd13c4c85f44f70dc56bdf29283d9", "0.891", "0.939", "c220411c349b8a75624ff17ef6fd3923", "0.587", "af8ed06ab873c130f789be84e18a21ca", "0.939", "c68ad2dc46a4f891b89984e814d14b48", "e791655d0751a7b94c3da722891dbb60", "b0f809cbabf3ac99182581ec095868b2", "0.981", "0.749", "0.776", "0.762", "0.826", "0.742", "0438a5ba138f16c681d2a5ebd323d643", "d084b32d5ad7ee012fef1f2de8889355", "270a745647e1f4f2daefddcae78b43c7", "03a1f9f63e2fa6c7bdf27d33eba2b09d", "0.899", "0.688", "0.992", "0.882", "b65410081c87ed629211d7fb136ec45f", "2bfd220284f4208a729f67f3f6f073c3", "0.863", "9a28e6b1aaae69477039957bc8a1222f", "898eb92ef2d1ef893f7d0c383527b44d", "93a6c8e48c3242ede19d1e7ac1a7c9d0", "1.000", "0.790", "b3b9843bbbe0fbf712a588255088fd4c", "0.310", "0.892", "0.881", "0.847", "5ff8e498511cf932f268d705707899f2", "466f240b16ae7967d70c0d1c09d52b3d", "0.967", "83675d30639c20d61e9f59c2b956ee5b", "808938559d03ba4c5c3ff7e91845409b", "0.623", "0.903", "204e528f5aec2e81f7915c9c6a94cee6", "0.734", "0.798", "0.955", "0.810", "0.807", "b358d76cf51dad99d526470074e5f31c", "cdb79eecfa38ac58e99bfdef45fabfce", "0.975", "50c77a7d7927650d7b1a093e9d2c62de", "f9c752d5c510e07c457e029af2d6d31b", "e5f421f77127c381ff85107a2d059a54", "5999c79b4a0c61c19a9cf4cc497f1514", "e9401f3db9527e1a57b19c9117442afc", "0.824", "0.283", "0.893", "0.817", "2d01d21dc12ee96d173b6ab4e83f9a3b", "9a9b3e55a01301447e700aa691484259", "dd3f1d27af1be908d3c3fd143339aa9c", "5ba41fd826c45352c3911bdcaea6789a", "0.902", "0.993", "0.742", "0.901", "0.750", "4830e95dd9e662f12faaa55eff27cfb1", "75becb2d36234aba744a63a5352d7bcf", "37a7e187d35366eb6167cbe90e558af1", "e07164dc4c344fb8e6717042190ef640", "0.998", "0.803", "185fd5fa18cb1cc8b0fa2bacf60af299", "51111e66d97d8fd3f0bdf584d69c7835", "0dd0551c0dd279c12d8a31ad016f0a7b", "e2ca214f7055c2a6eedc54ac7689d169", null, "203720d95f187b349581dde6357d9132", "60a2e0a4d6760de56ad66a42a4093dc5", "294439019add4f19e8d5d95d40921207", "22907d450b79c927e4ffe34a2d09d2aa", "0.867", "ebd96cb375290c7c8c509c9e8e3cbfbb", "0.540", "0.763", "0.763", "0.061", "f679f83cc29f62068cf48b6707764f06", "0.770", "a5b1249e36cbfb705c50d2b413894e4e", "23194d2b7c5d9dadd6ac2f254c6586d1", "5fe7368c69e66529f0fe71354cc10fc7", "0.974", "0.781", "0.978", "0.915", "238e0fbcac917cbfa3de2e6c3e1241c8", "6c921e3ae0af506f54295d074ca071bc", "0.852", "c67805e12dc927c5b3ba6b192381ecf7", "2bb1a59800107718c59b7c1c1feed8b5", "0.380", "0.833", "00cd2f68603124759047487807589f27", "d080cab9552a33192a413765d373dc31", "9fac45309651b2907fa6715ab127400c", "0.973", "0.677", "b155d97b79acc3086ce118451afa0124", "84e572f913265549a89a30c9124edd53", "0.771", "0.963", "bd7c5ad4d62286b6ad0a96ea53b2ebbd", "13506518b825bfbd65794347af5958c6", "6ce460b984e317282ff741b2456bea89", "41968913d9ca2d9dfd73c99f7947bb01", "0.921", "a9bb943f579e2a70186c19aae1c8ea0a", "0.807", "0.730", "0.909", "25eaaaae173c4a95142e5b4feb6bdae9", "0.953", "0.181", "0.747", "ce40f273a2b6e2ca6c9a07d963892f67", "27719bc4fd200292e8b507f6a2cd3096", "ac28c199405fa8466bdedf16d456edbc", "0.875", "0.848", "0.912", "38adbe9eea67ff19396c8bf63d5363bb", "0.860", "fcc84f75257e928f79853e39bb2c6d23", "001ea74b39dc57e51aa0f6c2ab1c475b", "0.998", "0.635", "0.982", "725f3336cd7e92e814c5f299fc4bfddb", "1ca6c232223e11140a64765c71b31445", "0b0e03a032c5cc2b1c3b7af60839de9a", "0.801", "d1476bb89d6599350ac45892b4e6c04f", "1ed042ec7e64fa5c66f0898472c5ac02", "2e7dda16afecd9647cc9bbc1ab18b86a", "f9f8a1e38fcd6166305ee1a90187d5ed", "10055b4de0b725f946f9dc5f3e8409df", null, "e4bfcf46a4b8bf5965170c61613572a7", "2cf0267a31dc6f1b8ee65c913b8f6e4d", "1d9a5ba78b68a6a4e27d52ccb4dceaa7", "f3fa38d456fe5941ace85c2184cca046", "0.630", "0.915", "0.977", "0.878", "9e31424bebb25a100572229efc973274", "0.871", "57e11c3559fa2ef79a2702684229e4ba", "0.911", "0.906", "91a093473cad95da81d9ebb47d5ef0c5", "af26ba64d6f2fab3985dbc4fb2a8241f", "0.960", "0.896", "d2e0c58f3e2b97c342c9c190ef1763f7", "0.899", "0.306", "6aaac37f56d07ffcea4fe9ef1cd00d2f", "f4c7676e8043df7074244706adb77375", "5f1f6453ad88dc836876671d27f97f58", "0.999", "1841ceeb252a3e471065c84c01175567", "08ce27cee52afc14d82faaae7852a600", "0.867", "0.783", "0.954", "0.901", "0.699", "0.933", "1c281deaf71c6d702d1ddadfa953eac6", "0.896", "b301115074f6e3de36efa48b692c7f8b", "0.551", "0.575", "2006fe383b340a27e98dd35f0c1e838b", "0.752", "0.752", "0.930", "0.417", "f4ad92074fc1b41b8ada1a77cc50d272", "43a8ea1c851ab2ea9da78b97a4ac34ab", "0.926", "0.950", "3fef0aa05ca3465ee472eab252b85c36", "6666d92d91b3751c3de261c842d3ec0b", "6b8307a0222360f36caf7065c78ff424", "5e38bd2f8ac285e8fda42ed1cd83b7e1", "0.965", "0.900", "0.916", "0.780", "0.916", "0.815", "0.779", "0.872", "0.000", "0.900", "0.982", "0.738", "0.828", "0.789", "0.000", "0.865", "0.769", null, "root"],
+          [-1, 0.059926519, 0.004031935, 5e-09, 0.093111296, 0.0583522, 0.054028406, 0.0, 0.0, 0.014820304, 0.020867038, 0.009992859, 5e-09, 0.00404299, 0.029777238, 0.007906107, 0.006640421, 0.02234155, 0.031747758, 0.001461574, 0.009018544, 0.016495492, 0.012542673, 0.04810034, 0.053780782, 0.097948157, 0.051346898, 0.004026419, 5e-09, 0.022106546, 0.038836329, 0.03948188, 0.060851844, 0.047555766, 0.192009786, 5e-09, 0.004147706, 5e-09, 0.010438073, 0.020783005, 0.091318226, 0.016676691, 0.066732205, 0.056799013, 0.094825077, 0.075141521, 0.111392448, 0.024543141, 0.032352559, 5e-09, 0.004139142, 0.011196434, 0.016687214, 0.005212948, 5e-09, 0.004139128, 0.028990357, 0.015686063, 0.021459163, 0.020341496, 0.034891314, 0.004609335, 0.007042599, 5e-09, 0.0, 0.0, 0.004139153, 0.0, 0.0, 5e-09, 0.004171136, 0.058263573, 0.044928567, 5e-09, 0.028990299, 0.005842088, 0.004718544, 0.043722129, 0.007886927, 0.059199393, 0.004139156, 5e-09, 0.004810526, 0.055256177, 0.044210278, 0.019759972, 0.008499368, 0.013626245, 0.009424233, 0.016602568, 0.030703614, 0.008711128, 0.075995831, 0.022990834, 5e-09, 0.004132869, 0.013481158, 0.017317712, 0.034711172, 0.012080009, 0.004320032, 0.021827163, 0.0, 0.0, 0.004222561, 0.008386786, 6e-09, 0.044821983, 0.035419748, 6e-09, 0.013872622, 0.024377331, 0.038410031, 0.000938185, 0.004228582, 0.04715671, 0.037125973, 0.009114917, 0.018767303, 0.005483194, 0.045235511, 0.01893704, 0.021436999, 0.007973498, 0.026385903, 0.013728775, 0.004065689, 0.004235919, 0.006405442, 0.039470063, 0.018826623, 0.033925218, 0.027692391, 0.046101042, 0.039255923, 0.005601971, 5e-09, 0.012391558, 0.019617545, 0.028017076, 0.029162071, 0.057484634, 0.178734455, 0.164164719, 0.049065551, 0.044402113, 0.048180361, 0.013320102, 0.069939964, 0.005958253, 0.023594605, 0.009825823, 5e-09, 0.012346273, 0.004031701, 5e-09, 6e-09, 0.004025491, 0.01381717, 5e-09, 0.00402765, 0.030754869, 0.016571812, 5e-09, 0.00801124, 0.026030626, 0.018499576, 0.005229417, 6e-09, 0.00856718, 0.054638598, 0.1006425675, 0.002269935, 0.00402936, 5e-09, 0.001782526, 0.17308972, 0.008896049, 0.030309992, 0.052664298, 0.023078439, 0.060665228, 0.006898275, 0.022688451, 0.004038256, 5e-09, 0.007209332, 0.057142316, 0.085618408, 0.033319809, 0.032620191, 0.026698705, 0.08426013, 0.054970577, 0.038517048, 0.019851012, 0.014542994, 0.014297709, 0.0, 0.0, 0.023339567, 0.026722404, 0.013214178, 0.147167993, 0.174714442, 0.014999815, 0.030700512, 0.043576205, 5e-09, 0.016571067, 0.050162338, 0.184992056, 0.01730523, 0.025975422, 0.058452343, 0.005102087, 0.00810419, 0.012667955, 0.067771546, 0.013372649, 5e-09, 0.00748979, 0.133850464, 0.036447051, 0.016702184, 5e-09, 0.266201158, 0.032179557, 0.059182912, 0.028879134, 5e-09, 0.004065331, 0.006449298, 0.019416025, 0.028858839, 0.07504593, 0.044046808, 0.038725526, 0.011057923, 0.255730055, 5e-09, 0.004084206, 0.062532897, 0.064423361, 0.007628734, 0.02791506, 0.033883813, 0.030392295, 0.04293541, 0.02165655, 0.07705257, 0.004940125, 0.011675516, 0.012217864, 0.078864926, 0.05348031, 0.014688583, 0.050036194, 0.001581676, 0.015628825, 0.039059362, 0.058726883, 5e-09, 0.254108671, 0.060574706, 0.110398573, 0.02380372, 0.04483303, 0.004021447, 0.0040317, 5e-09, 0.130939127, 0.208155367, 0.079950247, 0.147202282, 0.201971974, 0.038411004, 0.046367147, 0.203363659, 0.008898043, 0.089484941, 0.147351458, 0.150950365, 5e-09, 5e-09, 0.004023794, 0.008149316, 0.08860948, 0.02269898, 0.006316599, 0.024182735, 0.070860658, 0.030931149, 0.013529284, 0.088499352, 0.007249423, 0.013433893, 0.015389763, 0.021582072, 0.023323625, 0.023774633, 0.018852909, 0.030258971, 0.01254794, 0.040097573, 0.01658357, 0.015658649, 0.051584586, 0.018220037, 0.020173465, 0.161429193, 0.025930986, 0.004103174, 5e-09, 5e-09, 0.050696523, 0.044641576, 0.08958006, 0.015398735, 0.047833755, 0.073332708, 5e-09, 0.008189824, 0.004025533, 5e-09, 5e-09, 0.038729091, 0.058116309, 0.016390673, 0.014237397, 0.054099308, 0.003138389, 0.000957763, 0.049456566, 0.051044568, 0.021231901, 0.009144438, 0.016173004, 0.008050751, 0.008446991, 0.047555519, 0.058444282, 0.022685361, 0.02959275, 0.012649616, 0.008221063, 5e-09, 0.004079861, 0.025145997, 5e-09, 0.008107652, 0.004038859, 5e-09, 5e-09, 0.009317088, 0.024878562, 0.014985856, 0.025756004, 0.008118795, 5e-09, 0.016661082, 0.008149349, 5e-09, 0.016663535, 5e-09, 0.004038301, 0.008223785, 5e-09, 0.00447612, 0.021352133, 0.039726149, 0.002270266, 0.002281961, 0.007636962, 5e-09, 0.004228566, 0.005899278, 0.010901825, 0.03263396, 5e-09, 5e-09, 0.008125148, 0.023915257, 0.051850234, 0.002705611, 5e-09, 0.008119536, 0.002707877, 0.002707422, 5e-09, 0.002379488, 0.001756774, 0.004079853, 0.004029383, 5e-09, 5e-09, 5e-09, 0.053059522, 5e-09, 0.049124419, 0.008751335, 0.016481893, 0.003987027, 0.008201237, 6e-09, 0.02098442, 0.00407989, 0.0, 0.0, 5e-09, 0.016643174, 5e-09, 5e-09, 0.004097142, 0.024783345, 6e-09, 0.01387534, 0.008883208, 0.004053453, 0.008177702, 6e-09, 5e-09, 0.020310648, 0.00844851, 5e-09, 5e-09, 0.004034939, 0.012346933, 0.046198158, 0.022163668, 5e-09, 0.008267732, 0.016943908, 0.012304877, 0.004079885, 5e-09, 5e-09, 0.008281117, 0.004043325, 0.008280886, 5e-09, 0.008211939, 0.00408862, 0.044647565, 0.032045502, 0.054359146, 0.07829923, 0.095572319, 0.0136056, 0.030269451, 0.021709925, 0.142275302, 0.02147465, 0.016801329, 0.027564524, 0.049830507, 0.006213355, 0.017777266, 0.045479095, 0.020169666, 0.002732423, 0.024048592, 0.018737865, 0.034268786, 0.01036127, 0.006429251, 0.013024845, 0.030748475, 0.040285568, 0.00790364, 0.007983658, 0.02946475, 5e-09, 0.025440434, 0.021984089, 0.033436254, 0.056178267, 0.11380066, 0.016726164, 5e-09, 0.004053479, 0.012665204, 5e-09, 0.004038683, 0.012411856, 0.004064641, 5e-09, 0.008146057, 5e-09, 0.008157317, 4.004e-05, 0.025442396, 0.012445772, 5e-09, 0.024765791, 5e-09, 0.004079879, 0.000896985, 0.034489322, 0.008225004, 6e-09, 0.012400652, 0.012696245, 0.016657356, 5e-09, 0.008407096, 0.012534626, 0.00811028, 0.02158602, 0.012394096, 5e-09, 0.004037893, 5e-09, 0.012446016, 0.008419759, 0.004356745, 0.00831574, 0.004101668, 0.012515551, 5e-09, 0.051213354, 0.033841481, 0.052928285, 0.000656678, 0.007618206, 0.046506574, 0.11063464, 0.06110795, 0.034177342, 0.024958201, 0.13502726, 0.020666884, 0.010815582, 0.020687398, 0.017304855, 0.0, 0.0, 0.03390856, 0.004024874, 6e-09, 0.030114678, 5e-09, 0.004019508, 5e-09, 0.040988361, 0.049766115, 0.007198925, 6e-09, 0.025754167, 0.004086265, 0.004129042, 0.00405085, 0.008259936, 0.004148362, 0.003991131, 0.008415639, 0.004023791, 6e-09, 0.014806338, 0.011750111, 0.02205265, 0.003455042, 0.014304301, 0.022079627, 0.005990967, 0.016812096, 0.005716861, 0.008241714, 6e-09, 5e-09, 0.025893305, 0.003949366, 0.004181164, 5e-09, 0.008162315, 5e-09, 0.016689666, 5e-09, 0.008134021, 0.005283452, 0.005394166, 0.008295102, 0.029997759, 0.003971498, 0.004048504, 0.084320302, 0.032841656, 0.016354918, 5e-09, 0.017215926, 0.012709312, 0.008319406, 0.008307599, 0.008217791, 0.008177725, 5e-09, 5e-09, 0.012288235, 0.012523747, 5e-09, 0.088000456, 0.003843051, 0.004275533, 0.045508776, 0.011359204, 0.008556954, 5e-09, 0.004045052, 0.039775232, 0.044442312, 0.074618046, 5e-09, 5e-09, 0.021083223, 0.004037213, 5e-09, 0.011141172, 0.01089717, 0.008370338, 0.01702712, 0.013406363, 0.0, 0.0, 0.0, 0.007416985, 0.030248717, 5e-09, 0.021503882, 0.004504939, 0.003657605, 0.008306657, 5e-09, 5e-09, 0.004079864, 0.012451505, 5e-09, 0.008118794, 0.007788216, 6e-09, 0.004718453, 0.003752456, 0.017479272, 0.025687392, 5e-09, 0.004053466, 5e-09, 0.012835505, 0.004027865, 0.004202225, 0.021982345, 6e-09, 0.025601747, 0.008348125, 0.007913116, 0.005304433, 0.011418606, 0.008704252, 0.036271883, 0.008304488, 0.004318107, 6e-09, 0.012481658, 0.008228995, 5e-09, 0.016700284, 0.008222895, 0.005010054, 0.004137337, 0.004011068, 0.004133176, 0.016983906, 0.008170365, 0.004056411, 0.004065982, 5e-09, 0.007364133, 0.012660161, 0.00505333, 0.030325856, 0.004099903, 5e-09, 0.004064654, 0.008942621, 0.038908127, 0.008900401, 5e-09, 0.012469916, 0.01710957, 0.008683332, 0.003607548, 6e-09, 0.00814058, 0.004029459, 5e-09, 0.004078027, 6e-09, 0.004054545, 0.021080712, 6e-09, 6e-09, 5e-09, 5e-09, 0.016443747, 0.004080116, 0.008126202, 0.004053486, 5e-09, 0.004080172, 5e-09, 0.008136668, 0.004053475, 0.008125306, 5e-09, 0.021074622, 0.008188777, 0.004065531, 0.004079864, 5e-09, 6e-09, 0.003791745, 0.016981458, 0.005850682, 0.00830271, 6e-09, 0.005132633, 0.005953786, 0.01653904, 5e-09, 5e-09, 0.008157987, 0.01724519, 5e-09, 0.004039266, 0.026195579, 0.012738928, 5e-09, 5e-09, 0.004045888, 0.016796084, 0.017669231, 0.012203293, 0.012036076, 0.011694414, 0.000927991, 0.012441918, 0.012670995, 0.017225347, 0.008259095, 0.012464983, 5e-09, 0.004024854, 5e-09, 0.008161483, 0.004063929, 0.004043495, 0.019896222, 0.013449376, 0.067675837, 0.015540525, 0.026045804, 0.012604383, 0.014678093, 5e-09, 0.016741109, 0.012667131, 0.021236665, 0.021135668, 5e-09, 0.012615899, 0.008125332, 5e-09, 0.01242188, 0.014452118, 0.010516754, 0.004038227, 5e-09, 0.031811236, 0.013653197, 0.006746985, 0.004231634, 0.004103836, 0.004426153, 0.009163603, 0.045505482, 5e-09, 0.004079878, 0.017169978, 0.00407043, 0.029903706, 0.008583915, 0.063705481, 0.019592816, 0.019434681, 0.004172786, 5e-09, 0.004037102, 0.035360467, 0.004726802, 0.045047305, 5e-09, 0.016138046, 0.008556465, 0.008302165, 0.012451444, 5e-09, 0.020664933, 5e-09, 0.039553284, 0.006025844, 0.011220657, 0.03001244, 5e-09, 6e-09, 0.008158213, 0.004059428, 0.004127503, 5e-09, 0.004029399, 0.026421671, 0.056533982, 0.01645904, 0.049377355, 0.000473682, 0.012182595, 0.016078188, 0.022101518, 0.022667993, 0.009411751, 0.038896859, 5e-09, 0.012530386, 5e-09, 0.012352407, 0.033395137, 0.00452671, 0.017223473, 0.003898033, 0.021425032, 0.013050272, 0.004053441, 5e-09, 0.060492539, 0.01184386, 0.021355572, 0.0, 0.0, 0.0, 5e-09, 0.007677289, 5e-09, 0.016789707, 5e-09, 0.004079902, 0.00405346, 5e-09, 0.002285267, 0.002286245, 5e-09, 0.004043583, 0.004269397, 5e-09, 0.004045355, 5e-09, 0.012500904, 0.003896401, 0.017194005, 5e-09, 0.008280902, 5e-09, 0.004031725, 5e-09, 0.008110854, 5e-09, 0.012400694, 0.010705089, 0.004053464, 5e-09, 0.029807678, 0.016111947, 5e-09, 0.038818942, 0.004797107, 0.020587423, 0.021758097, 0.026546588, 0.015181355, 0.006582711, 0.016457789, 0.02528275, 0.00843243, 0.003653209, 0.013698465, 0.01194387, 0.017434093, 6e-09, 0.005383438, 5e-09, 0.029535595, 5e-09, 0.008258325, 0.011123615, 0.017035414, 0.013905439, 0.016053307, 5e-09, 0.004025859, 0.050563815, 0.012128003, 0.027512344, 0.038104805, 5e-09, 0.004053482, 0.006624789, 0.013478705, 0.053317674, 0.008375516, 0.0, 0.0, 0.017336144, 5e-09, 0.004053448, 0.004039262, 5e-09, 5e-09, 0.021315719, 0.022068577, 0.01259585, 5e-09, 0.008090191, 0.012334758, 5e-09, 0.008712843, 0.025517044, 5e-09, 0.017136285, 5e-09, 0.025816336, 0.013726313, 5e-09, 0.025035759, 0.037990508, 0.01093044, 0.063966268, 0.012381385, 5e-09, 0.009462747, 0.013795524, 0.025402037, 0.012510954, 0.005385911, 0.020288115, 5e-09, 0.023500696, 0.020895481, 0.019142138, 0.00192364, 0.009042362, 0.006201574, 0.00674973, 0.016048707, 5e-09, 0.004488669, 0.021015052, 0.012542132, 0.011979604, 0.011411272, 0.013737451, 5e-09, 0.004027687, 0.026902131, 0.017256763, 0.013977194, 5e-09, 0.008355758, 5e-09, 0.004056193, 0.008404417, 5e-09, 0.012289376, 0.032675941, 0.004870705, 0.013230574, 0.016998747, 0.010362682, 0.030968619, 0.013143766, 0.06094632950000001, 0.0]
+        );
+        var fmCols = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Confidence"];
+
+        var splitTaxonomyCols = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7"];
+
+        var canvas = document.getElementById('tree-surface');
+
+        var biom = null;
+        if (isCommunityPlot) {
+            biom = new BIOMTable(
+              null,
+              null,
+              {},
+              {},
+              null,
+              null,
+              null,
+            );
+        }
+        var empress = new Empress(
+            tree,
+            biom,
+            fmCols,
+            splitTaxonomyCols,
+            {"1": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__UBA932", "g__Cryptobacteroides", "s__Cryptobacteroides sp902787255", "0.9418188256980866"], "2": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__UBA932", "g__Cryptobacteroides", "s__Cryptobacteroides sp902787255", "0.7381544281558039"], "3": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__UBA932", "g__Cryptobacteroides", "s__Cryptobacteroides sp902787255", "0.7393274077322636"], "6": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Tidjanibacter", "s__Tidjanibacter inops_A", "0.9999999996988436"], "7": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__", "0.9999311122785136"], "8": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__", "0.999742385490098"], "10": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__", "0.981144818772616"], "12": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__Alistipes_A_871400 excrementavium", "0.869653864964628"], "13": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__Alistipes_A_871400 excrementavium", "0.9087914358070228"], "15": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__", "0.8734133097738348"], "17": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "Unspecified", "0.9922143605493527"], "18": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__Alistipes_A_871400 sp002362235", "0.9999955258529288"], "21": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Alistipes_A_871400", "s__Alistipes_A_871400 shahii", "0.948562667499334"], "25": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__", "s__", "0.9999999740979182"], "26": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Rikenella", "s__Rikenella microfusus", "0.9999600110313543"], "27": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Rikenella", "s__Rikenella microfusus", "0.8847064795643357"], "28": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Rikenellaceae", "g__Rikenella", "s__Rikenella microfusus", "0.8534057004034218"], "34": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Butyricimonas", "s__Butyricimonas virosa", "0.8024915724930316"], "35": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Odoribacter_865974", "s__Odoribacter splanchnicus", "0.9934579091618148"], "36": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Odoribacter_865974", "s__Odoribacter splanchnicus", "0.9999964973128452"], "37": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Odoribacter_865974", "s__Odoribacter splanchnicus", "0.9999993564826976"], "39": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Odoribacter_865974", "s__Odoribacter splanchnicus", "0.991099505180656"], "40": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Marinifilaceae", "g__Odoribacter_865974", "s__Odoribacter laneus", "0.9998530624066448"], "45": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp900547755", "0.959629408034763"], "46": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9865000076363728"], "47": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Paramuribaculum", "s__Paramuribaculum intestinale", "0.9999982977557088"], "48": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9999923352910636"], "49": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp002362485", "0.9999999990750724"], "50": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp002362485", "0.999999998567958"], "54": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella dubosii", "0.858623106515454"], "55": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella dubosii", "0.9169338888104556"], "57": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Muribaculum", "s__Muribaculum gordoncarteri", "0.999983968732416"], "59": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp004102805", "0.7025060182355513"], "60": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Muribaculum", "s__Muribaculum gordoncarteri", "0.8287193733999437"], "63": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Paramuribaculum", "Unspecified", "0.7480931800908758"], "64": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9839974699226608"], "65": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9867343316146192"], "67": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9767330793022168"], "68": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9804642323389532"], "72": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9998407266654062"], "73": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp004102805", "0.8360477491592456"], "77": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA3263", "s__UBA3263 sp001689615", "0.9999990865156912"], "78": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella sp001689575", "0.9999991066365096"], "79": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella freteri", "0.9997945736062944"], "80": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella freteri", "0.9999999969024884"], "81": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella freteri", "0.999999998727006"], "85": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA3263", "s__UBA3263 sp001689615", "0.8524335675959235"], "88": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp900547755", "0.9999940166968686"], "89": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp900547755", "0.9999752949123154"], "91": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp002493045", "0.9952494365366216"], "92": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9802995502514597"], "94": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp002493045", "0.9999999957909012"], "95": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-485", "s__CAG-485 sp002493045", "0.9999999771855388"], "101": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9999963695116822"], "102": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp004102805", "0.9966226985256292"], "103": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp004102805", "0.9942589535601348"], "107": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9999688947649196"], "108": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella muris", "0.9958986426925124"], "109": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Duncaniella", "s__Duncaniella dubosii", "0.9999982457254116"], "111": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__Muribaculum", "s__Muribaculum intestinale", "0.9999053464039684"], "112": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp002491305", "0.9999973349830056"], "115": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.9998420889496018"], "116": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "Unspecified", "Unspecified", "0.997699771041493"], "119": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-873", "s__CAG-873 sp011959565", "0.999936132571518"], "120": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA7173", "s__UBA7173 sp002491305", "0.9681843502257108"], "121": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__CAG-873", "s__CAG-873 sp011959565", "0.812241419000751"], "124": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Muribaculaceae", "g__UBA3263", "s__UBA3263 sp001689615", "0.791314527033509"], "134": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Tannerellaceae", "g__Parabacteroides_B_862066", "s__Parabacteroides_B_862066 distasonis", "0.9999999999978256"], "135": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Tannerellaceae", "g__Parabacteroides_B_862066", "s__", "0.99710137580375"], "136": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Tannerellaceae", "g__Parabacteroides_B_862066", "s__Parabacteroides_B_862066 goldsteinii", "0.9190790869636448"], "137": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Tannerellaceae", "g__Parabacteroides_B_862066", "s__Parabacteroides_B_862066 gordonii", "0.9919860768589251"], "142": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Paraprevotella", "s__Paraprevotella clara", "0.9489607530628884"], "143": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Prevotella", "s__Prevotella sp902776665", "0.9999952618704652"], "144": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__UBA932", "g__Cryptobacteroides", "s__Cryptobacteroides sp009774765", "0.9999999999521094"], "145": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Alloprevotella", "s__Alloprevotella sp002933955", "0.9999999983671444"], "149": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "s__Bacteroides_H oleiciplenus", "0.836907074698538"], "150": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "s__Bacteroides_H clarus", "0.7455267285270553"], "151": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "s__Bacteroides_H rodentium", "0.999167746520732"], "152": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "Unspecified", "0.9999999999839352"], "153": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "s__Bacteroides_H caecimuris", "0.9757376876270334"], "155": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "Unspecified", "0.999999999980658"], "157": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Bacteroides_H", "Unspecified", "0.999999999995266"], "159": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Phocaeicola_A_858004", "s__Phocaeicola_A_858004 vulgatus", "0.9720594223759768"], "160": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Phocaeicola_A_858004", "s__Phocaeicola_A_858004 vulgatus", "0.7517876217690452"], "162": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Phocaeicola_A_858004", "s__Phocaeicola_A_858004 sartorii", "0.8847470634668502"], "163": ["d__Bacteria", "p__Bacteroidota", "c__Bacteroidia", "o__Bacteroidales", "f__Bacteroidaceae", "g__Phocaeicola_A_858004", "s__Phocaeicola_A_858004 sartorii", "0.9996307566520294"], "172": ["d__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Burkholderiales_595427", "f__Burkholderiaceae_A_595427", "g__Parasutterella", "s__Parasutterella sp009767915", "0.9999999987614104"], "173": ["d__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Burkholderiales_595427", "f__Burkholderiaceae_A_595427", "g__Parasutterella", "s__Parasutterella sp009767915", "0.9999999986944346"], "174": ["d__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Burkholderiales_595427", "f__Burkholderiaceae_A_595427", "g__Parasutterella", "s__Parasutterella sp009767915", "0.9999999995755504"], "177": ["d__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Enterobacterales_A_737866", "f__Enterobacteriaceae_A", "g__Escherichia_710834", "Unspecified", "0.9937039903519904"], "178": ["d__Bacteria", "p__Proteobacteria", "c__Gammaproteobacteria", "o__Enterobacterales_A_737866", "f__Enterobacteriaceae_A", "Unspecified", "Unspecified", "0.999999944358861"], "180": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Bilophila", "s__Bilophila wadsworthia", "0.9669028760154096"], "181": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Bilophila", "s__Bilophila wadsworthia", "0.9977332425683652"], "183": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Desulfovibrio_R_446353", "s__Desulfovibrio_R_446353 sp011039135", "0.9833523403659356"], "184": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Desulfovibrio_R_446353", "Unspecified", "0.9999988137468948"], "185": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Desulfovibrio_R_446353", "Unspecified", "0.9999998329622212"], "188": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Mailhella", "s__Mailhella massiliensis", "0.9999999997414194"], "189": ["d__Bacteria", "p__Desulfobacterota_I", "c__Desulfovibrionia", "o__Desulfovibrionales", "f__Desulfovibrionaceae", "g__Mailhella", "s__Mailhella massiliensis", "0.999999975388562"], "195": ["d__Bacteria", "p__Campylobacterota", "c__Campylobacteria", "o__Campylobacterales", "f__Helicobacteraceae", "g__Helicobacter_C_479931", "s__Helicobacter_C_479931 typhlonius", "0.9998289501728592"], "196": ["d__Bacteria", "p__Campylobacterota", "c__Campylobacteria", "o__Campylobacterales", "f__Helicobacteraceae", "g__Helicobacter_C_479931", "s__Helicobacter_C_479931 hepaticus", "0.9994513436522334"], "198": ["d__Bacteria", "p__Campylobacterota", "c__Campylobacteria", "o__Campylobacterales", "f__Helicobacteraceae", "g__Helicobacter_D", "s__Helicobacter_D ganmani", "0.9005047345218042"], "199": ["d__Bacteria", "p__Campylobacterota", "c__Campylobacteria", "o__Campylobacterales", "f__Helicobacteraceae", "g__Helicobacter_D", "s__Helicobacter_D apodemus", "0.7500700556571476"], "201": ["d__Bacteria", "p__Campylobacterota", "c__Campylobacteria", "o__Campylobacterales", "f__Helicobacteraceae", "g__Helicobacter_C_479931", "s__Helicobacter_C_479931 sp000765665", "0.9974038158326282"], "204": ["d__Bacteria", "p__Proteobacteria", "c__Alphaproteobacteria", "o__Rs-D84_512864", "f__Rs-D84", "g__Enterousia", "s__", "0.9967033263874217"], "207": ["d__Bacteria", "p__Verrucomicrobiota", "c__Verrucomicrobiae", "o__Verrucomicrobiales", "f__Akkermansiaceae", "g__Akkermansia", "Unspecified", "0.9981647121745696"], "208": ["d__Bacteria", "p__Verrucomicrobiota", "c__Verrucomicrobiae", "o__Verrucomicrobiales", "f__Akkermansiaceae", "g__Akkermansia", "s__Akkermansia muciniphila_D_776786", "0.99941671148162"], "209": ["d__Bacteria", "p__Verrucomicrobiota", "c__Verrucomicrobiae", "o__Verrucomicrobiales", "f__Akkermansiaceae", "g__Akkermansia", "s__Akkermansia muciniphila_D_776786", "0.9997378067894314"], "212": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__Zag111", "s__Zag111 sp001899395", "0.999933389446224"], "213": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__CAG-196", "s__CAG-196 sp002102975", "0.9992643342147184"], "214": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__Stercorousia", "s__", "0.9999550541788982"], "215": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__UBA2813", "s__", "0.8465198763835842"], "219": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__", "s__", "0.9999997629051192"], "221": ["d__Bacteria", "p__Cyanobacteria", "c__Vampirovibrionia", "o__Gastranaerophilales", "f__Gastranaerophilaceae", "g__", "s__", "0.9999802793737372"], "224": ["d__Bacteria", "p__Actinobacteriota", "c__Coriobacteriia", "o__Coriobacteriales", "f__Eggerthellaceae", "g__Adlercreutzia_404199", "s__Adlercreutzia muris", "0.9159839115014068"], "225": ["d__Bacteria", "p__Actinobacteriota", "c__Coriobacteriia", "o__Coriobacteriales", "f__Eggerthellaceae", "g__Adlercreutzia_404257", "s__Adlercreutzia mucosicola", "0.7449950015518668"], "227": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Peptostreptococcales", "f__Anaerovoracaceae", "g__", "s__", "0.9999870799535316"], "228": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Peptostreptococcales", "f__Anaerovoracaceae", "g__BX12", "s__BX12 sp902363595", "0.9999723449984896"], "229": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Peptostreptococcales", "f__Anaerovoracaceae", "g__Emergencia", "s__Emergencia sp009935805", "0.9985008748031462"], "230": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Peptostreptococcales", "f__Anaerovoracaceae", "g__Emergencia", "s__Emergencia sp009935805", "0.9973002617399396"], "231": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Peptostreptococcales", "f__Anaerovoracaceae", "g__Emergencia", "s__Emergencia sp009935805", "0.995091689069134"], "237": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Acholeplasmatales", "f__Anaeroplasmataceae", "g__Pelethenecus", "s__", "0.9995864177711395"], "238": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Acholeplasmatales", "f__Anaeroplasmataceae", "g__Pelethenecus", "s__", "0.9999782251777656"], "240": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "Unspecified", "Unspecified", "0.9999999999842138"], "241": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__UBA2730", "s__", "0.7045857403821029"], "243": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__Scybalousia", "s__Scybalousia sp900543675", "0.9999771409988982"], "244": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__Scybalousia", "s__Scybalousia sp900543675", "0.9819605885757748"], "247": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "Unspecified", "Unspecified", "0.9999999995768636"], "248": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__", "s__", "0.9990202067943802"], "250": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__CAG-628", "s__CAG-628 sp003524085", "0.9999915394540372"], "251": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__UBA6985", "s__", "0.999999875670263"], "252": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__UBA6985", "s__", "0.9999993534091332"], "254": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__UBA6985", "s__UBA6985 sp900314465", "0.9999732381177672"], "255": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__RF39", "f__UBA660", "g__", "s__", "0.9158160944766616"], "263": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Mycoplasmatales", "f__Metamycoplasmataceae", "g__Mycoplasma_J_271639", "s__Metamycoplasma sualvi", "0.9999999968584916"], "265": ["d__Bacteria", "p__Firmicutes_B_370539", "c__Peptococcia", "o__Peptococcales", "f__Peptococcaceae_369362", "g__Peptococcus", "s__Peptococcus niger", "0.99999999999676"], "266": ["d__Bacteria", "Unspecified", "Unspecified", "Unspecified", "Unspecified", "Unspecified", "Unspecified", "0.9999999999989524"], "268": ["d__Bacteria", "p__Proteobacteria", "c__Alphaproteobacteria", "o__RF32", "f__CAG-239", "g__CAJLXD01", "s__CAJLXD01 sp900551585", "0.9999996313369448"], "269": ["d__Bacteria", "p__Proteobacteria", "c__Alphaproteobacteria", "o__RF32", "f__CAG-239", "g__Scatocola", "s__Scatocola faecipullorum", "0.9999991077934712"], "270": ["d__Bacteria", "p__Proteobacteria", "c__Alphaproteobacteria", "o__RF32", "f__CAG-239", "g__Scatocola", "s__Scatocola faecipullorum", "0.999991502942014"], "273": ["d__Bacteria", "p__Deferribacterota", "c__Deferribacteres", "o__Deferribacterales", "f__Mucispirillaceae", "g__Mucispirillum", "s__Mucispirillum schaedleri", "1.0"], "274": ["d__Bacteria", "p__Deferribacterota", "c__Deferribacteres", "o__Deferribacterales", "f__Denitrovibrionaceae", "Unspecified", "Unspecified", "0.945289506435256"], "278": ["d__Bacteria", "p__Firmicutes_A", "Unspecified", "Unspecified", "Unspecified", "Unspecified", "Unspecified", "0.7020616902334291"], "280": ["d__Bacteria", "p__Firmicutes_B_370539", "c__Dehalobacteriia", "o__Dehalobacteriales", "f__Dehalobacteriaceae", "g__", "s__", "0.9999999952849664"], "281": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-74", "Unspecified", "Unspecified", "0.9999998696929168"], "282": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Clostridiales", "f__Clostridiaceae_222000", "g__Dwaynesavagella", "s__Dwaynesavagella sp000270205", "0.9987915141162712"], "283": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Clostridiales", "f__Clostridiaceae_222000", "g__Clostridium_T", "Unspecified", "0.9999999552030868"], "284": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Clostridiales", "f__Clostridiaceae_222000", "g__Clostridium_T", "s__Clostridium_T disporicum_203972", "0.9595028619379457"], "285": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Clostridiales", "f__Clostridiaceae_222000", "g__Clostridium_T", "s__Clostridium_T disporicum_203972", "0.9312949428559818"], "291": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Haloplasmatales_A", "f__Turicibacteraceae", "g__Turicibacter", "s__", "0.9954110282968068"], "292": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Streptococcaceae", "g__Streptococcus", "s__Streptococcus infantarius", "0.909636646820876"], "293": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Streptococcaceae", "g__Streptococcus", "s__Streptococcus danieliae", "0.7407500490157286"], "295": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Lactobacillaceae", "g__Ligilactobacillus", "Unspecified", "0.9995767497557726"], "296": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Lactobacillaceae", "g__Ligilactobacillus", "s__Ligilactobacillus agilis", "0.9999046892840768"], "298": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Lactobacillaceae", "g__Limosilactobacillus", "Unspecified", "0.999998346679504"], "299": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Lactobacillaceae", "g__Lactobacillus", "Unspecified", "0.9999999961926856"], "300": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Lactobacillales", "f__Lactobacillaceae", "g__Lactobacillus", "s__Lactobacillus amylovorus", "0.7974672774205783"], "306": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Coprobacillaceae", "g__Erysipelatoclostridium", "Unspecified", "0.999999753359493"], "307": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Coprobacillaceae", "g__Catenibacterium", "Unspecified", "0.9316756584941694"], "308": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Coprobacillaceae", "g__", "s__", "0.9986961153113654"], "311": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Erysipelotrichaceae", "g__C-19", "s__C-19 sp009917405", "0.9992924172413782"], "312": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Erysipelotrichaceae", "g__C-19", "s__C-19 sp009917405", "0.9999998909102376"], "313": ["d__Bacteria", "p__Firmicutes_D", "c__Bacilli", "o__Erysipelotrichales", "f__Erysipelotrichaceae", "g__C-19", "s__C-19 sp009917405", "0.9999998274434752"], "319": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Catonella", "s__", "0.9999999999748894"], "320": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__", "g__", "s__", "0.9245435963366216"], "321": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Anaerotignaceae", "Unspecified", "Unspecified", "0.9999996439501396"], "322": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Anaerotignaceae", "g__Coprocola", "s__", "0.9857699980077138"], "323": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Anaerotignaceae", "g__Coprocola", "s__", "0.9991920147274252"], "324": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Anaerotignaceae", "g__Coprocola", "s__", "0.9996204956377992"], "330": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__CAG-272", "g__RUG13077", "s__", "0.999304258649176"], "331": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__CAG-272", "g__Avispirillum", "s__Avispirillum sp011957885", "0.9999931205544808"], "332": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__CAG-272", "g__Avispirillum", "s__Avispirillum sp011957885", "0.999985567385238"], "335": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9996609896418172"], "336": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9994754805886462"], "337": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9998652439509812"], "340": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Faecousia", "s__Faecousia sp000434635", "0.9991527307843792"], "341": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__UBA1381", "f__UBA1381", "g__CAG-41", "s__CAG-41 sp001941225", "0.9999998985731704"], "342": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Eubacteriales_45227", "f__Oscillospiraceae_45227", "g__Ructibacterium", "s__", "0.9936085990087176"], "345": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9996750790060316"], "346": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter sp000403435", "0.954091845090628"], "347": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter sp000403435", "0.7896828605881819"], "349": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__", "0.9613426700433216"], "350": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "Unspecified", "0.9221212790972844"], "351": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__", "0.9615363711840978"], "355": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter welbionis", "0.931518904188007"], "356": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter sp000403435", "0.999511580034222"], "358": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter sp000403435", "0.9770187119699126"], "359": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__Dysosmobacter sp000403435", "0.8493011048888709"], "361": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__", "0.9967645839223722"], "362": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__", "0.9622067113923146"], "364": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "Unspecified", "0.9994304111061146"], "365": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Dysosmobacter", "s__", "0.933628493783542"], "371": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9999812756704476"], "372": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9999092228343492"], "377": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9988623819128186"], "380": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.9545157223303338"], "381": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__", "s__", "0.97164365495008"], "384": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter sp000492175", "0.8615590112375883"], "385": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "Unspecified", "0.9999992774914008"], "386": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter sp000492175", "0.7282333204196509"], "389": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter sp000492175", "0.7071654930653861"], "392": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "Unspecified", "0.999999954007726"], "393": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter sp000492175", "0.9306095276020266"], "395": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter sp000492175", "0.8861715772247345"], "398": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Evtepia", "s__", "0.9825745647074372"], "399": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Evtepia", "s__", "0.8152680753943873"], "401": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "Unspecified", "Unspecified", "0.9999996807548384"], "402": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "Unspecified", "0.7652703201098879"], "403": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Lawsonibacter", "s__Lawsonibacter asaccharolyticus", "0.9940662559109154"], "404": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Enterenecus", "s__Enterenecus faecium", "0.7535746332903942"], "406": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Enterenecus", "s__Enterenecus sp004560375", "0.9995641697586926"], "407": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Enterenecus", "s__Enterenecus sp004560375", "0.9993883674355828"], "408": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Enterenecus", "s__Enterenecus sp004560375", "0.997342356776918"], "412": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Oscillospiraceae_88309", "g__Enterenecus", "s__Enterenecus sp004560375", "0.8534087341696092"], "418": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Pseudobutyricicoccus", "s__Pseudobutyricicoccus sp003477405", "0.9963145922386516"], "419": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Pseudobutyricicoccus", "s__Pseudobutyricicoccus sp003477405", "0.9932210008727712"], "420": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Pseudobutyricicoccus", "s__Pseudobutyricicoccus sp003477405", "0.9986733757838824"], "424": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Butyricicoccus_A_77030", "s__Butyricicoccus_A_77030 pullicaecorum", "0.9998519864904732"], "425": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Butyricicoccus_A_77030", "s__Butyricicoccus_A_77030 pullicaecorum", "0.9950705724106192"], "426": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Butyricicoccaceae", "g__Butyricicoccus_A_77030", "s__Butyricicoccus_A_77030 pullicaecorum", "0.992470447827119"], "430": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Ruminococcus_E", "s__Ruminococcus_E bromii", "0.7209817131146286"], "431": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "Unspecified", "0.9924511521885886"], "432": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "s__Acutalibacter sp009936055", "0.999792696083565"], "433": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "Unspecified", "Unspecified", "0.9999998029270818"], "434": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "s__Acutalibacter muris", "0.9912008751424136"], "436": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "s__Acutalibacter muris", "0.9070967087509528"], "439": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "s__Acutalibacter muris", "0.9993594068841068"], "440": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Acutalibacter", "s__Acutalibacter muris", "0.999626112202848"], "445": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Ruminiclostridium_E", "s__Ruminiclostridium_E siraeum", "0.9999996904162513"], "446": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Eubacterium_R", "Unspecified", "0.9999873419032836"], "447": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__UBA946", "s__", "0.999999913456808"], "448": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Ruminococcus_C_58660", "Unspecified", "0.7019500404413183"], "451": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Ruthenibacterium", "s__Ruthenibacterium lactatiformans", "0.997729876369851"], "452": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Phocea", "s__", "0.7389167777076999"], "453": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "Unspecified", "Unspecified", "0.999999805823052"], "454": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Paludicola", "s__Paludicola psychrotolerans", "0.9542068926526815"], "455": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Paludicola", "s__Paludicola psychrotolerans", "0.9978376809092808"], "456": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Paludicola", "s__Paludicola psychrotolerans", "0.9987076501859904"], "459": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "Unspecified", "Unspecified", "0.999975450574986"], "462": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Anaerotruncus", "s__Anaerotruncus sp000403395", "0.999999274278331"], "463": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "Unspecified", "Unspecified", "0.9987272287988312"], "464": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "Unspecified", "Unspecified", "0.9999223155418966"], "465": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Ruminococcaceae", "g__Angelakisella", "s__Angelakisella massiliensis", "0.9987141457782512"], "477": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Oscillospirales", "f__Acutalibacteraceae", "g__Fimenecus", "Unspecified", "0.7694548458350892"], "478": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.8742656391023457"], "479": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__CAG-269 sp000431335", "0.95106829505054"], "480": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__CAG-269 sp000431335", "0.8825010164778777"], "482": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__CAG-269 sp000431335", "0.9737064046218864"], "483": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__CAG-269 sp000431335", "0.9598447066365569"], "485": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__UMGS1994", "s__UMGS1994 sp900553945", "0.7003156543535076"], "486": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "Unspecified", "Unspecified", "0.9999999999997088"], "487": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__UMGS1994", "s__UMGS1994 sp900553945", "0.9056098944394256"], "490": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__", "0.992234629243347"], "491": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "Unspecified", "Unspecified", "0.9999999999581458"], "494": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__UMGS1994", "s__UMGS1994 sp900553945", "0.9999637136455756"], "495": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__UMGS1994", "s__UMGS1994 sp900553945", "0.999814786293511"], "496": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__UMGS1994", "s__UMGS1994 sp900553945", "0.9999789386484584"], "499": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.7048065994070509"], "500": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "Unspecified", "Unspecified", "0.999999999985193"], "506": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-269", "s__", "0.9998872334804396"], "507": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.99472076163383"], "508": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.999939456581497"], "509": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.996222686789337"], "510": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.9833520579370572"], "511": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__", "s__", "0.9801180241452008"], "519": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-273", "s__CAG-273 sp003507395", "0.9417112855350952"], "522": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-552", "g__", "s__", "0.895789735602266"], "523": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "Unspecified", "Unspecified", "Unspecified", "0.9945040775418704"], "524": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "Unspecified", "Unspecified", "Unspecified", "0.9971655511425636"], "526": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__UBA1242", "g__UBA11490", "s__UBA11490 sp003524095", "0.9997992396515372"], "527": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-552", "g__", "s__", "0.8684918971559396"], "528": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-552", "g__", "s__", "0.99979584471692"], "530": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__UBA1242", "g__WQSK01", "s__WQSK01 sp009787915", "0.7569402037581234"], "535": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-314", "g__CAG-314", "s__CAG-314 sp900551395", "0.9999999996985308"], "536": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-314", "g__CAG-314", "s__CAG-314 sp900551395", "0.99999999988016"], "538": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-314", "g__CAG-314", "s__", "0.9998849981314653"], "539": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__CAG-314", "g__CAG-314", "s__", "0.999200209007384"], "541": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__", "s__", "0.9591339589756736"], "543": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__", "s__", "0.9946851204533154"], "547": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999873705292"], "548": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999993510518524"], "549": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999703373424"], "550": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999999988741152"], "552": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999999995358735"], "553": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999999954349563"], "554": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999949481692"], "558": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999819607514882"], "559": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999980136494"], "560": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.99999999908394"], "561": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999988974013942"], "567": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999995460912"], "568": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999981007052"], "570": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999999992573848"], "571": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.999999995015898"], "573": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999984652987"], "574": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999923856964"], "577": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999996769164"], "581": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999938970348"], "582": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Christensenellales", "f__Borkfalkiaceae", "g__Borkfalkia", "s__", "0.9999999993933528"], "589": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999954400750392"], "590": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_F", "s__Eubacterium_F sp003491505", "0.9233231334498728"], "591": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_F", "s__Eubacterium_F sp000687695", "0.9991261746097352"], "592": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_F", "s__Eubacterium_F sp000687695", "0.975326800987807"], "594": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_F", "s__Eubacterium_F sp000687695", "0.9999103212089252"], "596": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_F", "s__Eubacterium_F sp000687695", "0.9996134120924496"], "600": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Lachnospira", "s__", "0.999284532269909"], "601": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_S", "s__Eubacterium_S uniforme", "0.9999644668698404"], "602": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_S", "s__Eubacterium_S uniforme", "0.9999759851556804"], "606": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9998489939869116"], "607": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9998971843032584"], "609": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999996091628965"], "610": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__TANB77", "f__CAG-508", "g__CAG-273", "s__", "0.8240709742475392"], "613": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.9260485146517058"], "614": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999999069807046"], "615": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999989050898714"], "619": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyrivibrio_A_180067", "s__Butyrivibrio_A_180067 crossotus", "0.9310819950686442"], "620": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Merdisoma", "s__Merdisoma sp011959465", "0.9788686555866398"], "621": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Merdisoma", "s__Merdisoma sp011959465", "0.9982882993692744"], "622": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Merdisoma", "s__Merdisoma sp011959465", "0.9978714579485286"], "623": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Merdisoma", "s__Merdisoma sp011959465", "0.9964893227627976"], "625": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Merdisoma", "s__Merdisoma sp011959465", "0.999979222670024"], "628": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.9119817627750618"], "629": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.8782974575627112"], "631": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.8251693829783413"], "632": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.9944263216950168"], "633": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.9841663152074936"], "634": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Porcincola", "s__", "0.9777858235561276"], "641": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999999331082818"], "642": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Oribacterium", "s__", "0.8472293024509081"], "643": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Enterocloster", "s__Enterocloster sp000431375", "0.9339692782136676"], "644": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999970431912"], "646": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrimonas", "s__Ventrimonas sp003611875", "0.987157407719202"], "647": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrimonas", "s__Ventrimonas sp003611875", "0.8754737959791763"], "650": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrisoma", "s__Ventrisoma faecale", "0.9036017287436472"], "651": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrisoma", "s__Ventrisoma faecale", "0.9923721544483144"], "654": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrimonas", "Unspecified", "0.8271073575994936"], "655": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999990027516"], "657": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999799498049482"], "662": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403335", "0.9233027030535768"], "663": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__", "0.979945345191924"], "664": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403335", "0.7493417464797318"], "667": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__C-53", "s__", "0.9836253664258896"], "668": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403215", "0.9287565754323172"], "669": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403215", "0.9347765929667498"], "672": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "Unspecified", "0.7738078134927872"], "673": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__", "0.8793683691613193"], "678": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__C-53", "s__C-53 sp003612525", "0.9125919943084644"], "679": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999998355354358"], "680": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999998666618104"], "681": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3402", "s__", "0.8170327119095623"], "682": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-95", "s__CAG-95 sp900066375", "0.8746272827942851"], "683": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999997360961388"], "685": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.8775134573774652"], "686": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.8241920806586323"], "687": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9863139321986693"], "688": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-95", "s__CAG-95 sp900066375", "0.9538752140936568"], "692": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-95", "s__CAG-95 sp000403495", "0.995810957436484"], "693": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9691638424733996"], "694": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9271126376609996"], "695": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.910929533672503"], "697": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.999844391293738"], "699": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9603606774002535"], "701": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9999768548926288"], "702": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.99715184358846"], "704": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9797231048856762"], "705": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9935433914100814"], "706": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__UBA3282", "s__UBA3282 sp003611805", "0.9944398644093746"], "712": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999987675036"], "713": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.7432765841314921"], "714": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999998969562858"], "720": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9701799897308484"], "722": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9087048106244888"], "723": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9124000096248588"], "729": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999682385684"], "730": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Blautia_A_141781", "Unspecified", "0.7111431340354223"], "731": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-56", "s__CAG-56 sp004793585", "0.9999983056193004"], "732": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-56", "s__CAG-56 sp004793585", "0.999999449662861"], "735": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999846370662882"], "736": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "s__Butyribacter intestini", "0.7063495761732577"], "737": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999996945664075"], "740": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.9831315631495664"], "742": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999923758048"], "744": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.9998487752202752"], "745": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.9999993709497792"], "747": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999793947719468"], "748": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9997905809019016"], "749": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "Unspecified", "0.9583129974422472"], "750": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "Unspecified", "0.7043617466751554"], "751": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "s__", "0.7068736793402814"], "756": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.804062984929202"], "757": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Paralachnospira", "s__", "0.7221886986630774"], "758": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.9569448541813872"], "763": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__", "0.9981401155067322"], "764": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "s__Butyribacter sp003612285", "0.9547149825108664"], "765": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9998692088406124"], "766": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Butyribacter", "s__Butyribacter intestini", "0.9999051210861304"], "769": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__1XD42-69", "s__1XD42-69 sp003612565", "0.9965609667643374"], "771": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Agathobacter_164119", "Unspecified", "0.7073913546443973"], "773": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.99987986391305"], "774": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__", "0.8026131294305785"], "775": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__", "0.8276934775761159"], "782": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999994803483454"], "783": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_G", "Unspecified", "0.999999971644728"], "784": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999983448065698"], "785": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999913233262114"], "790": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999784794574448"], "791": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp001940225", "0.813471078839643"], "793": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Luxibacter", "s__", "0.9926159213247884"], "794": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Schaedlerella", "Unspecified", "0.9999985713526416"], "795": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Schaedlerella", "s__", "0.8156839469151116"], "798": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ruminococcus_B", "s__", "0.8991761341124691"], "803": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Robinsoniella", "s__", "0.7683114809597043"], "804": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9994641908069236"], "806": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999999932633959"], "807": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eisenbergiella", "s__", "0.7005594790528075"], "810": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999988259231554"], "816": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__", "s__", "0.7367138683980887"], "817": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__", "s__", "0.722745754554101"], "819": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__CAG-95", "s__CAG-95 sp009917455", "0.9999999994928004"], "820": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999999741572996"], "821": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999952857757396"], "822": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrimonas", "s__Ventrimonas sp003611875", "0.9766628565082336"], "823": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Ventrimonas", "s__Ventrimonas sp003611875", "0.9646113866522792"], "828": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Acetitomaculum", "s__", "0.9507574659817096"], "829": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403335", "0.9997002056029164"], "830": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403335", "0.9999985041185472"], "831": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__COE1", "s__COE1 sp000403335", "0.9999532824260826"], "837": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999954782213042"], "838": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9997837344546688"], "839": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Acetatifactor", "s__Acetatifactor sp011959105", "0.999919908714364"], "840": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Acetatifactor", "s__Acetatifactor sp011959105", "0.9998410879365258"], "843": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999998961892936"], "844": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Clostridium_AP", "Unspecified", "0.7264714007230261"], "845": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__MD308", "s__", "0.906256909516175"], "846": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Sporofaciens", "s__", "0.8334620773362439"], "848": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Clostridium_AP", "Unspecified", "0.8128977292079316"], "849": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Sporofaciens", "s__", "0.9888029147211274"], "850": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Sporofaciens", "s__Sporofaciens musculi", "0.9998239997816216"], "851": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Sporofaciens", "s__Sporofaciens musculi", "0.780060672450629"], "853": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Sporofaciens", "Unspecified", "0.9703207967560364"], "858": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Clostridium_AP", "Unspecified", "0.713961517092059"], "860": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__MD308", "s__", "0.9544848757156416"], "861": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999999999788996"], "862": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999999963665096"], "867": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9846368768923924"], "868": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9998011356365892"], "870": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9995120324877425"], "871": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "Unspecified", "0.9999329742785242"], "874": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__1XD42-69", "s__1XD42-69 sp009911505", "0.9999999255006627"], "875": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__1XD42-69", "s__1XD42-69 sp009911505", "0.8587554053026644"], "876": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__1XD42-69", "s__1XD42-69 sp009911505", "0.8410956410903586"], "879": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__1XD42-69", "s__1XD42-69 sp009911505", "0.9891902735110604"], "880": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.998312285554623"], "883": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "Unspecified", "0.9761849308577676"], "884": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Eubacterium_J", "s__Eubacterium_J plexicaudatum", "0.9909765947031242"], "885": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "Unspecified", "0.99966518547139"], "886": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.8082274523500127"], "888": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__", "0.9573706323511452"], "892": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__", "0.994364588106495"], "896": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9999834852052664"], "897": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9985998905076092"], "898": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__14-2", "s__14-2 sp000403315", "0.9999881310748936"], "902": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999813082977848"], "904": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Paralachnospira", "s__Paralachnospira sp902363445", "0.9998803805536868"], "905": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Paralachnospira", "s__Paralachnospira sp902363445", "0.9999182703243472"], "909": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999997064930112"], "910": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9786352150433832"], "911": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9918060556998908"], "913": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.8302132816901899"], "914": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.8478565803704005"], "915": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.8722682224786096"], "916": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9999896121610686"], "917": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9999384695906768"], "919": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9684701848717002"], "920": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9296938337080116"], "921": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999977213572346"], "922": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.7493350224029106"], "927": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.998413628099765"], "929": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Acetatifactor", "s__Acetatifactor muris", "0.9966168263850216"], "932": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999555852914878"], "933": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999987072467738"], "936": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.7917947460570461"], "939": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.999985200461401"], "940": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.999138595871984"], "941": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9996446054893424"], "943": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9618981889370792"], "944": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9889982904783696"], "951": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999962988685231"], "953": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999961596563504"], "956": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__C-53", "s__C-53 sp003612525", "0.9605358616539318"], "961": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix alysoides", "0.7058611703448117"], "962": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9998839284306292"], "965": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999970777229382"], "966": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "g__Kineothrix", "s__Kineothrix sp000403275", "0.9968676166239716"], "967": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999861182594636"], "968": ["d__Bacteria", "p__Firmicutes_A", "c__Clostridia_258483", "o__Lachnospirales", "f__Lachnospiraceae", "Unspecified", "Unspecified", "0.9999271824787264"]},
+            {},
+            canvas
+        );
+        empress.initialize();
+
+        // The side menu
+        var sPanel = new SidePanel(document.getElementById('side-panel'),
+                                   empress);
+        sPanel.addSettingsTab();
+        sPanel.addLayoutTab();
+        sPanel.addExportTab();
+
+        var shearer = new Shearer(
+          empress,
+          empress.getFeatureMetadataCategories(),
+        );
+        shearer.registerObserver(sPanel);
+
+        // Only show the sample metadata coloring / animation panels if a
+        // feature table and sample metadata file were provided
+        if (isCommunityPlot) {
+            sPanel.addSampleTab();
+
+            // Create animator state machine
+            var animator = new Animator(empress, sidePanelTabs);
+
+            // Add animator GUI components
+            var animationPanel = new AnimationPanel(animator, animationTab);
+            animationPanel.addAnimationTab();
+            document.getElementById("animationOpenButton").classList
+                .remove("hidden");
+        } else {
+            $(".needs-community-data").addClass("hidden");
+            if (fmCols.length === 0) {
+                // Neither feature nor sample metadata is available, so hide
+                // things that require at least one type of metadata (e.g.
+                // the barplot panel)
+                $(".needs-metadata").addClass("hidden");
+            }
+        }
+
+        // Similarly, only show the feature metadata coloring panel if feature
+        // metadata was provided
+        if (fmCols.length > 0) {
+            sPanel.addFeatureTab();
+        } else {
+            $(".needs-feature-metadata").addClass("hidden");
+        }
+
+        // Here we register the stats button to the shearer so that the tree
+        // stats are updated whenever the tree is sheared.
+        var statsButton = document.getElementById("stats-btn");
+        statsButton.shearUpdate = () => {
+          sPanel.populateTreeStats();
+          statsButton.classList.remove("unpopulated");
+        };
+        shearer.registerObserver(shearer);
+        shearer.registerObserver(statsButton);
+        
+
+        // make all tabs collapsable
+        document.querySelectorAll(".collapsible").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                // Only compute tree stats the first time the user opens up
+                // the tree statistics tab
+                if (
+                    this.id === "stats-btn" &&
+                    this.classList.contains("unpopulated")
+                ) {
+                    sPanel.populateTreeStats();
+                    this.classList.remove("unpopulated");
+                }
+
+                this.classList.toggle("active");
+                this.nextElementSibling.classList.toggle("hidden");
+                document.getElementById("side-panel").classList.toggle(
+                    "panel-active",
+                    document.querySelector(".side-content:not(.hidden)")
+                );
+          });
+        });
+
+        // make side panel visible (this is done after hiding controls so that
+        // the user sees it all appear at once, rather than seeing certain
+        // input-data-dependent controls [e.g. s/f metadata, barplots,
+        // animation] pop in above)
+        document.getElementById("side-panel").classList.remove("hidden");
+
+        document.getElementById("loading-screen").classList.add("hidden");
+
+        
+    });
+  </script>
+</html>
